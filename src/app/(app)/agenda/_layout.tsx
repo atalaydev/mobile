@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
 
 export default function AgendaLayout() {
-  return <Stack screenOptions={{ headerTitle: "Agenda" }} />;
+  return <Stack screenOptions={{ headerShown: false }} />;
 }
