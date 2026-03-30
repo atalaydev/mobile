@@ -26,25 +26,16 @@ const getHtml = (siteKey: string) => `
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: error }));
         },
       });
-
-      new ResizeObserver(function() {
-        var h = document.body.scrollHeight;
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'resize', height: h }));
-      }).observe(document.body);
     }
   </script>
-  <style>
-    body { margin: 0; display: flex; justify-content: center; align-items: center; background: transparent; }
-  </style>
 </head>
-<body>
-  <div id="container"></div>
-</body>
+<body><div id="container"></div></body>
 </html>
 `;
 
 export function Turnstile({ siteKey, onVerify, onError }: TurnstileProps) {
   const webViewRef = useRef<WebView>(null);
+
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
       const data = JSON.parse(event.nativeEvent.data);
@@ -75,7 +66,9 @@ export function Turnstile({ siteKey, onVerify, onError }: TurnstileProps) {
 
 const styles = StyleSheet.create({
   container: {
+    position: "absolute",
     height: 0,
+    width: 0,
     overflow: "hidden",
   },
   webview: {

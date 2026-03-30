@@ -1,7 +1,11 @@
-import { Text } from "@/components/Text";
+import { Checkbox } from "@/components/Checkbox";
 import { PhoneInput } from "@/components/PhoneInput";
+import { Text } from "@/components/Text";
 import { Turnstile } from "@/components/Turnstile";
+import { colors } from "@/constants/colors";
+import { TURNSTILE_SITE_KEY } from "@/constants/config";
 import { useAuth } from "@/contexts/AuthContext";
+import * as Burnt from "burnt";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { isValidPhoneNumber } from "libphonenumber-js";
@@ -10,14 +14,13 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const TURNSTILE_SITE_KEY = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY!;
 
 export default function LoginScreen() {
   const { sendOtp } = useAuth();
@@ -26,24 +29,41 @@ export default function LoginScreen() {
   const [fullPhone, setFullPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const [phoneError, setPhoneError] = useState<string | undefined>(undefined);
+  const [phoneError, setPhoneError] = useState<string | undefined>();
 
-  const handleSendOtp = async () => {
-    if (!turnstileToken) {
-      Alert.alert("Hata", "Doğrulama bekleniyor, lütfen bekleyin.");
-      return;
-    }
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [termsConsent, setTermsConsent] = useState(false);
+  const [termsError, setTermsError] = useState(false);
+
+  const handleSubmit = async () => {
     if (!isValidPhoneNumber(fullPhone)) {
       setPhoneError("Geçerli bir telefon numarası girin.");
       return;
     }
+    if (isNewUser && !termsConsent) {
+      setTermsError(true);
+      return;
+    }
     setPhoneError(undefined);
+    setTermsError(false);
     setLoading(true);
     try {
-      await sendOtp(fullPhone);
+      await sendOtp(fullPhone, { shouldCreateUser: isNewUser });
       router.push({ pathname: "/otp", params: { phone: fullPhone } });
     } catch (error) {
-      Alert.alert("Hata", (error as Error).message);
+      const message = (error as Error).message;
+      if (!isNewUser && (message.toLowerCase().includes("user not found") || message.toLowerCase().includes("signups not allowed"))) {
+        setIsNewUser(true);
+        Burnt.toast({
+          title: "Hesap bulunamadı!",
+          message: "Kayıt için koşulları kabul et.",
+          preset: "custom",
+          icon: { ios: { name: "exclamationmark.triangle.fill", color: "#FF9500" } },
+          haptic: "warning",
+        });
+      } else {
+        Alert.alert("Hata", message);
+      }
     } finally {
       setLoading(false);
     }
@@ -62,16 +82,14 @@ export default function LoginScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View style={styles.inner}>
-            <View style={styles.mainCard}>
+            <View style={styles.card}>
               <Image
                 source={require("@/assets/images/logo-icon.svg")}
                 style={styles.logo}
                 contentFit="contain"
               />
 
-              <Text style={styles.title}>
-                Miboso Dünyasına{"\n"}Hoş Geldin!
-              </Text>
+              <Text style={styles.title}>Miboso Dünyasına{"\n"}Hoş Geldin!</Text>
 
               <Text style={styles.description}>
                 Etkinliklerini takip etmek, faydalı içerikleri tüketmek ve
@@ -86,23 +104,48 @@ export default function LoginScreen() {
                 error={phoneError}
               />
 
+              {isNewUser && (
+                <Checkbox
+                  checked={termsConsent}
+                  onToggle={() => { setTermsConsent(!termsConsent); setTermsError(false); }}
+                  error={termsError}
+                >
+                  <Text style={styles.consentText}>
+                    <Text
+                      style={styles.consentLink}
+                      onPress={() => Linking.openURL("https://mibosowellbeing.com/tr/gizlilik/sozlesme")}
+                    >
+                      Kullanım Koşulları
+                    </Text>
+                    {" ve "}
+                    <Text
+                      style={styles.consentLink}
+                      onPress={() => Linking.openURL("https://mibosowellbeing.com/tr/gizlilik/aydinlatma-metni")}
+                    >
+                      Aydınlatma Metni
+                    </Text>
+                    'ni kabul ediyorum.
+                  </Text>
+                </Checkbox>
+              )}
+
+              <Turnstile
+                siteKey={TURNSTILE_SITE_KEY}
+                onVerify={setTurnstileToken}
+                onError={(err) => Alert.alert("Turnstile Hata", err)}
+              />
+
               <TouchableOpacity
                 style={[styles.button, !turnstileToken && styles.buttonDisabled]}
-                onPress={handleSendOtp}
+                onPress={handleSubmit}
                 disabled={loading || !turnstileToken}
               >
                 {loading || !turnstileToken ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Giriş Yap</Text>
+                  <Text style={styles.buttonText}>{isNewUser ? "Kayıt Ol" : "Giriş Yap"}</Text>
                 )}
               </TouchableOpacity>
-
-              <Turnstile
-                siteKey={TURNSTILE_SITE_KEY}
-                onVerify={setTurnstileToken}
-                onError={(error) => Alert.alert("Turnstile Hata", error)}
-              />
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -114,7 +157,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#E2EBB7",
+    backgroundColor: colors.background,
     overflow: "hidden",
   },
   clover: {
@@ -133,8 +176,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: "10%",
   },
-  mainCard: {
-    backgroundColor: "#FBFCF4",
+  card: {
+    backgroundColor: colors.card,
     borderRadius: 24,
     paddingHorizontal: 28,
     paddingTop: 28,
@@ -149,18 +192,29 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontFamily: "Inter_500Medium",
-    color: "#183228",
+    color: colors.text,
     textAlign: "center",
   },
   description: {
     fontSize: 14,
-    color: "#5E5F5E",
-    textAlign: "center",
+    color: colors.textSecondary,
+    textAlign: "justify",
     lineHeight: 20,
+  },
+  consentText: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.textSecondary,
+    textAlign: "justify",
+  },
+  consentLink: {
+    color: colors.link,
+    fontFamily: "Inter_500Medium",
+    textDecorationLine: "underline",
   },
   button: {
     height: 50,
-    backgroundColor: "#336B57",
+    backgroundColor: colors.primary,
     borderRadius: 25,
     alignItems: "center",
     justifyContent: "center",
@@ -169,7 +223,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: "#FCFCFC",
+    color: colors.textLight,
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
   },

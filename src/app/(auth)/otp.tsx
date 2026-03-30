@@ -1,5 +1,8 @@
-import { Text } from "@/components/Text";
 import { OtpInput } from "@/components/OtpInput";
+import { Text } from "@/components/Text";
+import { colors } from "@/constants/colors";
+import * as Burnt from "burnt";
+import { RESEND_COOLDOWN_SECONDS } from "@/constants/config";
 import { useAuth } from "@/contexts/AuthContext";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -8,13 +11,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const RESEND_COOLDOWN = 60;
 
 export default function OtpScreen() {
   const { phone } = useLocalSearchParams<{ phone: string }>();
@@ -23,7 +26,7 @@ export default function OtpScreen() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN);
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
 
   const formattedPhone = useMemo(() => {
     try {
@@ -45,7 +48,13 @@ export default function OtpScreen() {
     try {
       await verifyOtp(phone!, otp);
     } catch (error) {
-      Alert.alert("Hata", (error as Error).message);
+      Burnt.toast({
+        title: "Doğrulama başarısız.",
+        message: "Hatalı veya eski kod.",
+        preset: "error",
+        haptic: "error",
+        from: "bottom",
+      });
     } finally {
       setLoading(false);
     }
@@ -56,10 +65,20 @@ export default function OtpScreen() {
     try {
       await sendOtp(phone!);
       setOtp("");
-      setCooldown(RESEND_COOLDOWN);
-      Alert.alert("Başarılı", "Doğrulama kodu tekrar gönderildi.");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      Burnt.toast({
+        title: "Gönderildi.",
+        preset: "done",
+        haptic: "success",
+        from: "bottom",
+      });
     } catch (error) {
-      Alert.alert("Hata", (error as Error).message);
+      Burnt.toast({
+        title: "Kod gönderilemedi.",
+        preset: "error",
+        haptic: "error",
+        from: "bottom",
+      });
     } finally {
       setResending(false);
     }
@@ -69,21 +88,33 @@ export default function OtpScreen() {
 
   return (
     <View style={styles.root}>
-        <Image
-          source={require("@/assets/images/clover.svg")}
-          style={styles.clover}
-          contentFit="contain"
-        />
-        <SafeAreaView style={styles.flex}>
+      <Image
+        source={require("@/assets/images/clover.svg")}
+        style={styles.clover}
+        contentFit="contain"
+      />
+      <SafeAreaView style={styles.flex}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={styles.inner}>
-            <View style={styles.mainCard}>
+            <View style={styles.card}>
+              <Image
+                source={require("@/assets/images/logo-icon.svg")}
+                style={styles.logo}
+                contentFit="contain"
+              />
+
               <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
                 Telefon Numaranı Doğrula
               </Text>
 
               <Text style={styles.description}>
                 Lütfen{" "}
-                <Text style={styles.phoneLink} onPress={() => router.back()}>{formattedPhone}</Text>
+                <Text style={styles.phoneLink} onPress={() => router.back()}>
+                  {formattedPhone}
+                </Text>
                 {" "}numarasına gönderilen 6 haneli doğrulama kodunu giriniz.
               </Text>
 
@@ -106,17 +137,18 @@ export default function OtpScreen() {
                 onPress={handleResend}
                 disabled={resendDisabled}
               >
-                <Text style={[styles.linkText, resendDisabled && styles.linkTextDisabled]}>
+                <Text style={[styles.resendText, resendDisabled && styles.resendTextDisabled]}>
                   {resending
                     ? "Gönderiliyor..."
                     : cooldown > 0
                       ? `Kod ulaşmadı mı? ${cooldown} saniye sonra gönderilebilir.`
-                      : "Kod ulaşmadı mı? Tekrar Gönder"}
+                      : <>Kod ulaşmadı mı? <Text style={styles.resendUnderline}>Tekrar Gönder</Text></>}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
-        </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 }
@@ -124,7 +156,7 @@ export default function OtpScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#E2EBB7",
+    backgroundColor: colors.background,
     overflow: "hidden",
   },
   clover: {
@@ -140,34 +172,41 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
     paddingTop: "10%",
   },
-  mainCard: {
-    backgroundColor: "#FBFCF4",
+  card: {
+    backgroundColor: colors.card,
     borderRadius: 24,
-    padding: 28,
-    gap: 20,
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 20,
+    gap: 16,
+  },
+  logo: {
+    width: 64,
+    height: 64,
+    alignSelf: "center",
   },
   title: {
     fontSize: 28,
     fontFamily: "Inter_500Medium",
-    color: "#183228",
+    color: colors.text,
     textAlign: "center",
   },
   description: {
     fontSize: 14,
-    color: "#5E5F5E",
+    color: colors.textSecondary,
     textAlign: "center",
     lineHeight: 24,
   },
   phoneLink: {
     fontFamily: "Inter_600SemiBold",
-    color: "#336B57",
+    color: colors.link,
   },
   button: {
     height: 50,
-    backgroundColor: "#336B57",
+    backgroundColor: colors.primary,
     borderRadius: 25,
     alignItems: "center",
     justifyContent: "center",
@@ -176,19 +215,22 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: "#FCFCFC",
+    color: colors.textLight,
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
   },
   resendButton: {
     alignItems: "center",
   },
-  linkText: {
-    color: "#336B57",
+  resendText: {
+    color: colors.link,
     fontSize: 12,
     fontFamily: "Inter_500Medium",
   },
-  linkTextDisabled: {
+  resendTextDisabled: {
     opacity: 0.5,
+  },
+  resendUnderline: {
+    fontFamily: "Inter_700Bold",
   },
 });

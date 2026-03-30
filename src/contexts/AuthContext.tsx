@@ -6,7 +6,7 @@ type AuthContextType = {
   session: Session | null;
   isLoggedIn: boolean;
   isLoading: boolean;
-  sendOtp: (phone: string) => Promise<void>;
+  sendOtp: (phone: string, options?: { shouldCreateUser?: boolean }) => Promise<void>;
   verifyOtp: (phone: string, token: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -30,8 +30,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  const sendOtp = async (phone: string) => {
-    const { error } = await supabase.auth.signInWithOtp({ phone });
+  const sendOtp = async (phone: string, options?: { shouldCreateUser?: boolean }) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      phone,
+      options: { shouldCreateUser: options?.shouldCreateUser ?? false },
+    });
     if (error) throw error;
   };
 

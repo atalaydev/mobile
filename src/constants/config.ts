@@ -1,0 +1,2 @@
+export const TURNSTILE_SITE_KEY = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY!;
+export const RESEND_COOLDOWN_SECONDS = 60;

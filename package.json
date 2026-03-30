@@ -16,6 +16,7 @@
     "@react-navigation/elements": "^2.9.10",
     "@react-navigation/native": "^7.1.33",
     "@supabase/supabase-js": "^2.100.1",
+    "burnt": "^0.13.0",
     "country-flag-icons": "^1.6.15",
     "expo": "~55.0.9",
     "expo-constants": "~55.0.9",
