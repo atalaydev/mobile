@@ -10,6 +10,7 @@ import {
 } from "libphonenumber-js";
 import examples from "libphonenumber-js/mobile/examples";
 import { memo, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FlatList,
   Modal,
@@ -101,6 +102,7 @@ export function PhoneInput({
   disabled,
   error,
 }: PhoneInputProps) {
+  const { t } = useTranslation();
   const [country, setCountry] = useState<CountryItem>(DEFAULT_COUNTRY);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [search, setSearch] = useState("");
@@ -194,14 +196,14 @@ export function PhoneInput({
       >
         <SafeAreaView style={styles.modal} edges={["top", "bottom"]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Ülke Seçin</Text>
+            <Text style={styles.modalTitle}>{t("country.select")}</Text>
             <Pressable onPress={closePicker}>
-              <Text style={styles.modalClose}>Kapat</Text>
+              <Text style={styles.modalClose}>{t("country.close")}</Text>
             </Pressable>
           </View>
           <TextInput
             style={styles.searchInput}
-            placeholder="Ara..."
+            placeholder={t("country.search")}
             placeholderTextColor="#999"
             value={search}
             onChangeText={setSearch}

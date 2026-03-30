@@ -1,0 +1,52 @@
+{
+  "auth": {
+    "welcome": "Welcome to\nMiboso World!",
+    "description": "You can sign in to follow events, consume useful content and explore. Sign in quickly with your phone number.",
+    "login": "Sign In",
+    "register": "Sign Up",
+    "phoneError": "Please enter a valid phone number.",
+    "termsConsent": "I accept the {{terms}} and {{privacy}}.",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "noAccount": "Account not found!",
+    "noAccountMessage": "Accept the terms to sign up."
+  },
+  "otp": {
+    "title": "Verify Your Phone Number",
+    "description": "Please enter the 6-digit verification code sent to {{phone}}.",
+    "verify": "Verify",
+    "verifyFailed": "Verification failed.",
+    "verifyFailedMessage": "Invalid or expired code.",
+    "resendCooldown": "Didn't receive a code? Available in {{seconds}} seconds.",
+    "resend": "Didn't receive a code? ",
+    "resendAction": "Resend",
+    "resending": "Sending...",
+    "resendSuccess": "Sent.",
+    "resendFailed": "Could not send code."
+  },
+  "tabs": {
+    "agenda": "Agenda",
+    "explore": "Explore",
+    "library": "Library",
+    "profile": "Profile"
+  },
+  "agenda": {
+    "greeting": "Hello",
+    "name": "{{name}}"
+  },
+  "profile": {
+    "title": "Profile",
+    "logout": "Sign Out",
+    "logoutSuccess": "Signed out.",
+    "logoutFailed": "Could not sign out."
+  },
+  "country": {
+    "select": "Select Country",
+    "close": "Close",
+    "search": "Search..."
+  },
+  "common": {
+    "error": "Error",
+    "turnstileWaiting": "Verification pending, please wait."
+  }
+}

@@ -1,12 +1,14 @@
+import { Text } from "@/components/Text";
 import { useHeader } from "@/contexts/HeaderContext";
 import { Image } from "expo-image";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
-import { Text } from "@/components/Text";
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 
 export default function AgendaScreen() {
+  const { t } = useTranslation();
   const { setBackgroundColor } = useHeader();
   const heightPercent = useSharedValue(0);
 
@@ -36,7 +38,7 @@ export default function AgendaScreen() {
       </Animated.View>
       <View style={styles.content}>
         <View style={styles.greeting}>
-          <Text style={styles.greetingText}>Merhaba</Text>
+          <Text style={styles.greetingText}>{t("agenda.greeting")}</Text>
           <Text style={styles.nameText} numberOfLines={1} adjustsFontSizeToFit>Ömer Atalay</Text>
         </View>
       </View>

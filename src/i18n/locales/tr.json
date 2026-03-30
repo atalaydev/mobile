@@ -1,0 +1,52 @@
+{
+  "auth": {
+    "welcome": "Miboso Dünyasına\nHoş Geldin!",
+    "description": "Etkinliklerini takip etmek, faydalı içerikleri tüketmek ve keşfetmek için uygulamaya giriş yapabilirsiniz. Telefon numaranız ile hızlıca giriş yapabilirsiniz.",
+    "login": "Giriş Yap",
+    "register": "Kayıt Ol",
+    "phoneError": "Geçerli bir telefon numarası girin.",
+    "termsConsent": "{{terms}} ve {{privacy}}'ni kabul ediyorum.",
+    "terms": "Kullanım Koşulları",
+    "privacy": "Aydınlatma Metni",
+    "noAccount": "Hesap bulunamadı!",
+    "noAccountMessage": "Kayıt için koşulları kabul et."
+  },
+  "otp": {
+    "title": "Telefon Numaranı Doğrula",
+    "description": "Lütfen {{phone}} numarasına gönderilen 6 haneli doğrulama kodunu giriniz.",
+    "verify": "Doğrula",
+    "verifyFailed": "Doğrulama başarısız.",
+    "verifyFailedMessage": "Hatalı veya eski kod.",
+    "resendCooldown": "Kod ulaşmadı mı? {{seconds}} saniye sonra gönderilebilir.",
+    "resend": "Kod ulaşmadı mı? ",
+    "resendAction": "Tekrar Gönder",
+    "resending": "Gönderiliyor...",
+    "resendSuccess": "Gönderildi.",
+    "resendFailed": "Kod gönderilemedi."
+  },
+  "tabs": {
+    "agenda": "Gündem",
+    "explore": "Keşfet",
+    "library": "Kütüphane",
+    "profile": "Profil"
+  },
+  "agenda": {
+    "greeting": "Merhaba",
+    "name": "{{name}}"
+  },
+  "profile": {
+    "title": "Profile",
+    "logout": "Çıkış Yap",
+    "logoutSuccess": "Çıkış yapıldı.",
+    "logoutFailed": "Çıkış yapılamadı."
+  },
+  "country": {
+    "select": "Ülke Seçin",
+    "close": "Kapat",
+    "search": "Ara..."
+  },
+  "common": {
+    "error": "Hata",
+    "turnstileWaiting": "Doğrulama bekleniyor, lütfen bekleyin."
+  }
+}

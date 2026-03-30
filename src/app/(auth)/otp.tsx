@@ -1,16 +1,16 @@
 import { OtpInput } from "@/components/OtpInput";
 import { Text } from "@/components/Text";
 import { colors } from "@/constants/colors";
-import * as Burnt from "burnt";
 import { RESEND_COOLDOWN_SECONDS } from "@/constants/config";
 import { useAuth } from "@/contexts/AuthContext";
+import * as Burnt from "burnt";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { parsePhoneNumber } from "libphonenumber-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -20,6 +20,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function OtpScreen() {
+  const { t } = useTranslation();
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const { sendOtp, verifyOtp } = useAuth();
   const router = useRouter();
@@ -47,10 +48,10 @@ export default function OtpScreen() {
     setLoading(true);
     try {
       await verifyOtp(phone!, otp);
-    } catch (error) {
+    } catch {
       Burnt.toast({
-        title: "Doğrulama başarısız.",
-        message: "Hatalı veya eski kod.",
+        title: t("otp.verifyFailed"),
+        message: t("otp.verifyFailedMessage"),
         preset: "error",
         haptic: "error",
         from: "bottom",
@@ -58,7 +59,7 @@ export default function OtpScreen() {
     } finally {
       setLoading(false);
     }
-  }, [otp, phone, verifyOtp]);
+  }, [otp, phone, verifyOtp, t]);
 
   const handleResend = useCallback(async () => {
     setResending(true);
@@ -67,14 +68,14 @@ export default function OtpScreen() {
       setOtp("");
       setCooldown(RESEND_COOLDOWN_SECONDS);
       Burnt.toast({
-        title: "Gönderildi.",
+        title: t("otp.resendSuccess"),
         preset: "done",
         haptic: "success",
         from: "bottom",
       });
-    } catch (error) {
+    } catch {
       Burnt.toast({
-        title: "Kod gönderilemedi.",
+        title: t("otp.resendFailed"),
         preset: "error",
         haptic: "error",
         from: "bottom",
@@ -82,7 +83,7 @@ export default function OtpScreen() {
     } finally {
       setResending(false);
     }
-  }, [phone, sendOtp]);
+  }, [phone, sendOtp, t]);
 
   const resendDisabled = cooldown > 0 || resending;
 
@@ -107,15 +108,11 @@ export default function OtpScreen() {
               />
 
               <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
-                Telefon Numaranı Doğrula
+                {t("otp.title")}
               </Text>
 
               <Text style={styles.description}>
-                Lütfen{" "}
-                <Text style={styles.phoneLink} onPress={() => router.back()}>
-                  {formattedPhone}
-                </Text>
-                {" "}numarasına gönderilen 6 haneli doğrulama kodunu giriniz.
+                {t("otp.description", { phone: formattedPhone })}
               </Text>
 
               <OtpInput value={otp} onChangeText={setOtp} />
@@ -128,7 +125,7 @@ export default function OtpScreen() {
                 {loading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Doğrula</Text>
+                  <Text style={styles.buttonText}>{t("otp.verify")}</Text>
                 )}
               </TouchableOpacity>
 
@@ -139,10 +136,10 @@ export default function OtpScreen() {
               >
                 <Text style={[styles.resendText, resendDisabled && styles.resendTextDisabled]}>
                   {resending
-                    ? "Gönderiliyor..."
+                    ? t("otp.resending")
                     : cooldown > 0
-                      ? `Kod ulaşmadı mı? ${cooldown} saniye sonra gönderilebilir.`
-                      : <>Kod ulaşmadı mı? <Text style={styles.resendUnderline}>Tekrar Gönder</Text></>}
+                      ? t("otp.resendCooldown", { seconds: cooldown })
+                      : <>{t("otp.resend")}<Text style={styles.resendBold}>{t("otp.resendAction")}</Text></>}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -200,10 +197,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 24,
   },
-  phoneLink: {
-    fontFamily: "Inter_600SemiBold",
-    color: colors.link,
-  },
   button: {
     height: 50,
     backgroundColor: colors.primary,
@@ -230,7 +223,7 @@ const styles = StyleSheet.create({
   resendTextDisabled: {
     opacity: 0.5,
   },
-  resendUnderline: {
+  resendBold: {
     fontFamily: "Inter_700Bold",
   },
 });

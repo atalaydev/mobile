@@ -10,6 +10,7 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +24,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const { sendOtp } = useAuth();
   const router = useRouter();
   const [phone, setPhone] = useState("");
@@ -37,7 +39,7 @@ export default function LoginScreen() {
 
   const handleSubmit = async () => {
     if (!isValidPhoneNumber(fullPhone)) {
-      setPhoneError("Geçerli bir telefon numarası girin.");
+      setPhoneError(t("auth.phoneError"));
       return;
     }
     if (isNewUser && !termsConsent) {
@@ -55,14 +57,14 @@ export default function LoginScreen() {
       if (!isNewUser && (message.toLowerCase().includes("user not found") || message.toLowerCase().includes("signups not allowed"))) {
         setIsNewUser(true);
         Burnt.toast({
-          title: "Hesap bulunamadı!",
-          message: "Kayıt için koşulları kabul et.",
+          title: t("auth.noAccount"),
+          message: t("auth.noAccountMessage"),
           preset: "custom",
           icon: { ios: { name: "exclamationmark.triangle.fill", color: "#FF9500" } },
           haptic: "warning",
         });
       } else {
-        Alert.alert("Hata", message);
+        Alert.alert(t("common.error"), message);
       }
     } finally {
       setLoading(false);
@@ -89,17 +91,13 @@ export default function LoginScreen() {
                 contentFit="contain"
               />
 
-              <Text style={styles.title}>Miboso Dünyasına{"\n"}Hoş Geldin!</Text>
+              <Text style={styles.title}>{t("auth.welcome")}</Text>
 
-              <Text style={styles.description}>
-                Etkinliklerini takip etmek, faydalı içerikleri tüketmek ve
-                keşfetmek için uygulamaya giriş yapabilirsiniz. Telefon
-                numaranız ile hızlıca giriş yapabilirsiniz.
-              </Text>
+              <Text style={styles.description}>{t("auth.description")}</Text>
 
               <PhoneInput
                 value={phone}
-                onChangeText={(t) => { setPhone(t); setPhoneError(undefined); }}
+                onChangeText={(txt) => { setPhone(txt); setPhoneError(undefined); }}
                 onChangeFullNumber={setFullPhone}
                 error={phoneError}
               />
@@ -115,14 +113,14 @@ export default function LoginScreen() {
                       style={styles.consentLink}
                       onPress={() => Linking.openURL("https://mibosowellbeing.com/tr/gizlilik/sozlesme")}
                     >
-                      Kullanım Koşulları
+                      {t("auth.terms")}
                     </Text>
                     {" ve "}
                     <Text
                       style={styles.consentLink}
                       onPress={() => Linking.openURL("https://mibosowellbeing.com/tr/gizlilik/aydinlatma-metni")}
                     >
-                      Aydınlatma Metni
+                      {t("auth.privacy")}
                     </Text>
                     'ni kabul ediyorum.
                   </Text>
@@ -132,7 +130,7 @@ export default function LoginScreen() {
               <Turnstile
                 siteKey={TURNSTILE_SITE_KEY}
                 onVerify={setTurnstileToken}
-                onError={(err) => Alert.alert("Turnstile Hata", err)}
+                onError={(err) => Alert.alert(t("common.error"), err)}
               />
 
               <TouchableOpacity
@@ -143,7 +141,9 @@ export default function LoginScreen() {
                 {loading || !turnstileToken ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>{isNewUser ? "Kayıt Ol" : "Giriş Yap"}</Text>
+                  <Text style={styles.buttonText}>
+                    {isNewUser ? t("auth.register") : t("auth.login")}
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>

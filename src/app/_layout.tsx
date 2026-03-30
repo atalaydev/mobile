@@ -1,3 +1,4 @@
+import "@/i18n";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SplashOverlay } from "@/components/SplashOverlay";
 import {

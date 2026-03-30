@@ -1,12 +1,14 @@
+import { Text } from "@/components/Text";
 import { useAuth } from "@/contexts/AuthContext";
-import * as Burnt from "burnt";
 import { useHeader } from "@/contexts/HeaderContext";
+import * as Burnt from "burnt";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
-import { Text } from "@/components/Text";
+import { useTranslation } from "react-i18next";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 export default function ProfileScreen() {
+  const { t } = useTranslation();
   const { setBackgroundColor } = useHeader();
   const { logout } = useAuth();
 
@@ -20,13 +22,13 @@ export default function ProfileScreen() {
     try {
       await logout();
       Burnt.toast({
-        title: "Çıkış yapıldı.",
+        title: t("profile.logoutSuccess"),
         preset: "done",
         haptic: "success",
       });
-    } catch (error) {
+    } catch {
       Burnt.toast({
-        title: "Çıkış yapılamadı.",
+        title: t("profile.logoutFailed"),
         preset: "error",
         haptic: "error",
       });
@@ -35,9 +37,9 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Profile</Text>
+      <Text style={styles.title}>{t("profile.title")}</Text>
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Çıkış Yap</Text>
+        <Text style={styles.logoutText}>{t("profile.logout")}</Text>
       </TouchableOpacity>
     </View>
   );

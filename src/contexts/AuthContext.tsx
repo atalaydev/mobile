@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { getLocales } from "expo-localization";
+import i18n from "i18next";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 type AuthContextType = {
@@ -26,6 +27,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      const userLang = session?.user?.user_metadata?.language;
+      if (userLang) {
+        const lang = userLang.startsWith("tr") ? "tr" : "en";
+        if (i18n.language !== lang) i18n.changeLanguage(lang);
+      }
     });
 
     return () => data.subscription.unsubscribe();
