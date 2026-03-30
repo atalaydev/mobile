@@ -1,11 +1,13 @@
+import { useAuth } from "@/contexts/AuthContext";
 import { useHeader } from "@/contexts/HeaderContext";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import { Text } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "@/components/Text";
 
 export default function ProfileScreen() {
   const { setBackgroundColor } = useHeader();
+  const { logout } = useAuth();
 
   useFocusEffect(
     useCallback(() => {
@@ -13,9 +15,46 @@ export default function ProfileScreen() {
     }, [setBackgroundColor])
   );
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      Alert.alert("Hata", (error as Error).message);
+    }
+  };
+
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <Text style={{ fontSize: 24 }}>Profile</Text>
-    </SafeAreaView>
+    <View style={styles.container}>
+      <Text style={styles.title}>Profile</Text>
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutText}>Çıkış Yap</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "600",
+  },
+  logoutButton: {
+    marginTop: "auto",
+    marginBottom: 120,
+    height: 50,
+    backgroundColor: "#DC3545",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoutText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+});

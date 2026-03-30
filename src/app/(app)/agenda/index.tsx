@@ -2,7 +2,8 @@ import { useHeader } from "@/contexts/HeaderContext";
 import { Image } from "expo-image";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "@/components/Text";
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 
 export default function AgendaScreen() {

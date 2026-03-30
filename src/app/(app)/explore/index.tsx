@@ -1,7 +1,7 @@
 import { useHeader } from "@/contexts/HeaderContext";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import { Text } from "react-native";
+import { Text } from "@/components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ExploreScreen() {
