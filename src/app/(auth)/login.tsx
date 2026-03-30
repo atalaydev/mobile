@@ -1,8 +1,9 @@
 import { Text } from "@/components/Text";
+import { PhoneInput } from "@/components/PhoneInput";
 import { Turnstile } from "@/components/Turnstile";
 import { useAuth } from "@/contexts/AuthContext";
 import { Image } from "expo-image";
-import { PhoneInput } from "@/components/PhoneInput";
+import { useRouter } from "expo-router";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { useState } from "react";
 import {
@@ -11,7 +12,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -20,11 +20,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const TURNSTILE_SITE_KEY = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY!;
 
 export default function LoginScreen() {
-  const { sendOtp, verifyOtp } = useAuth();
+  const { sendOtp } = useAuth();
+  const router = useRouter();
   const [phone, setPhone] = useState("");
   const [fullPhone, setFullPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | undefined>(undefined);
@@ -42,18 +41,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await sendOtp(fullPhone);
-      setOtpSent(true);
-    } catch (error) {
-      Alert.alert("Hata", (error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    setLoading(true);
-    try {
-      await verifyOtp(fullPhone, otp);
+      router.push({ pathname: "/otp", params: { phone: fullPhone } });
     } catch (error) {
       Alert.alert("Hata", (error as Error).message);
     } finally {
@@ -95,59 +83,26 @@ export default function LoginScreen() {
                 value={phone}
                 onChangeText={(t) => { setPhone(t); setPhoneError(undefined); }}
                 onChangeFullNumber={setFullPhone}
-                disabled={otpSent}
                 error={phoneError}
               />
 
-              {otpSent && (
-                <TextInput
-                  style={styles.otpInput}
-                  placeholder="Doğrulama kodu"
-                  placeholderTextColor="#999"
-                  value={otp}
-                  onChangeText={setOtp}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                />
-              )}
-
-              {!otpSent && (
-                <Turnstile
-                  siteKey={TURNSTILE_SITE_KEY}
-                  onVerify={setTurnstileToken}
-                  onError={(error) => Alert.alert("Turnstile Hata", error)}
-                />
-              )}
-
               <TouchableOpacity
-                style={[
-                  styles.button,
-                  !otpSent && !turnstileToken && styles.buttonDisabled,
-                ]}
-                onPress={otpSent ? handleVerifyOtp : handleSendOtp}
-                disabled={loading || (!otpSent && !turnstileToken)}
+                style={[styles.button, !turnstileToken && styles.buttonDisabled]}
+                onPress={handleSendOtp}
+                disabled={loading || !turnstileToken}
               >
-                {loading ? (
+                {loading || !turnstileToken ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>
-                    {otpSent ? "Doğrula" : "Giriş Yap"}
-                  </Text>
+                  <Text style={styles.buttonText}>Giriş Yap</Text>
                 )}
               </TouchableOpacity>
 
-              {otpSent && (
-                <TouchableOpacity
-                  style={styles.resendButton}
-                  onPress={() => {
-                    setOtpSent(false);
-                    setOtp("");
-                    setTurnstileToken(null);
-                  }}
-                >
-                  <Text style={styles.resendText}>Numarayı değiştir</Text>
-                </TouchableOpacity>
-              )}
+              <Turnstile
+                siteKey={TURNSTILE_SITE_KEY}
+                onVerify={setTurnstileToken}
+                onError={(error) => Alert.alert("Turnstile Hata", error)}
+              />
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -181,7 +136,9 @@ const styles = StyleSheet.create({
   mainCard: {
     backgroundColor: "#FBFCF4",
     borderRadius: 24,
-    padding: 28,
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 20,
     gap: 16,
   },
   logo: {
@@ -201,17 +158,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
-  otpInput: {
-    height: 50,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    fontFamily: "Inter_400Regular",
-    color: "#333",
-    borderWidth: 1,
-    borderColor: "#E8EBEA",
-  },
   button: {
     height: 50,
     backgroundColor: "#336B57",
@@ -226,12 +172,5 @@ const styles = StyleSheet.create({
     color: "#FCFCFC",
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
-  },
-  resendButton: {
-    alignItems: "center",
-  },
-  resendText: {
-    color: "#336B57",
-    fontSize: 14,
   },
 });

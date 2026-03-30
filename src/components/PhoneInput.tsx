@@ -240,6 +240,7 @@ const styles = StyleSheet.create({
     color: "#DC3545",
     marginTop: 6,
     fontFamily: "Inter_400Regular",
+    textAlign: "center",
   },
   countryButton: {
     flexDirection: "row",

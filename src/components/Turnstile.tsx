@@ -1,5 +1,5 @@
-import { useRef, useCallback } from "react";
-import { StyleSheet } from "react-native";
+import { useCallback, useRef } from "react";
+import { StyleSheet, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
 type TurnstileProps = {
@@ -18,6 +18,7 @@ const getHtml = (siteKey: string) => `
     function onLoad() {
       turnstile.render('#container', {
         sitekey: '${siteKey}',
+        size: 'invisible',
         callback: function(token) {
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'success', token: token }));
         },
@@ -25,6 +26,11 @@ const getHtml = (siteKey: string) => `
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: error }));
         },
       });
+
+      new ResizeObserver(function() {
+        var h = document.body.scrollHeight;
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'resize', height: h }));
+      }).observe(document.body);
     }
   </script>
   <style>
@@ -39,7 +45,6 @@ const getHtml = (siteKey: string) => `
 
 export function Turnstile({ siteKey, onVerify, onError }: TurnstileProps) {
   const webViewRef = useRef<WebView>(null);
-
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
       const data = JSON.parse(event.nativeEvent.data);
@@ -53,22 +58,28 @@ export function Turnstile({ siteKey, onVerify, onError }: TurnstileProps) {
   );
 
   return (
-    <WebView
-      ref={webViewRef}
-      source={{ html: getHtml(siteKey) }}
-      style={styles.webview}
-      javaScriptEnabled
-      domStorageEnabled
-      onMessage={handleMessage}
-      scrollEnabled={false}
-      originWhitelist={["*"]}
-    />
+    <View style={styles.container}>
+      <WebView
+        ref={webViewRef}
+        source={{ html: getHtml(siteKey) }}
+        style={styles.webview}
+        javaScriptEnabled
+        domStorageEnabled
+        onMessage={handleMessage}
+        scrollEnabled={false}
+        originWhitelist={["*"]}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    height: 0,
+    overflow: "hidden",
+  },
   webview: {
-    height: 65,
+    flex: 1,
     backgroundColor: "transparent",
   },
 });

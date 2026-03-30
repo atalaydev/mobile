@@ -8,7 +8,9 @@ import {
 } from "@expo-google-fonts/inter";
 import { Slot, useRouter, useSegments, type Href } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { StyleSheet } from "react-native";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,6 +19,7 @@ function AuthGate() {
   const segments = useSegments();
   const router = useRouter();
   const redirectTo = useRef<Href | null>(null);
+  const [ready, setReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -32,21 +35,32 @@ function AuthGate() {
 
   useEffect(() => {
     if (isLoading || !fontsLoaded) return;
-    const inAuthenticated = segments[0] === "(app)";
+    const inApp = segments[0] === "(app)";
 
-    if (!isLoggedIn && inAuthenticated) {
+    if (!isLoggedIn && inApp) {
       redirectTo.current = ("/" + segments.join("/")) as Href;
       router.replace("/login");
-    } else if (isLoggedIn && !inAuthenticated) {
+    } else if (isLoggedIn && !inApp) {
       const target: Href = redirectTo.current ?? "/";
       redirectTo.current = null;
       router.replace(target);
     }
+
+    if (!ready) setReady(true);
   }, [isLoggedIn, isLoading, fontsLoaded, segments]);
 
   if (!fontsLoaded && !fontError) return null;
 
-  return <Slot />;
+  return (
+    <Animated.View
+      key={isLoggedIn ? "app" : "auth"}
+      entering={FadeIn.duration(300)}
+      exiting={FadeOut.duration(200)}
+      style={styles.root}
+    >
+      <Slot />
+    </Animated.View>
+  );
 }
 
 export default function RootLayout() {
@@ -56,3 +70,9 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});
