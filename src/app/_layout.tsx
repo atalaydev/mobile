@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { SplashOverlay } from "@/components/SplashOverlay";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -19,7 +20,7 @@ function AuthGate() {
   const segments = useSegments();
   const router = useRouter();
   const redirectTo = useRef<Href | null>(null);
-  const [ready, setReady] = useState(false);
+  const [appReady, setAppReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -46,20 +47,23 @@ function AuthGate() {
       router.replace(target);
     }
 
-    if (!ready) setReady(true);
+    if (!appReady) {
+      setTimeout(() => setAppReady(true), 500);
+    }
   }, [isLoggedIn, isLoading, fontsLoaded, segments]);
 
-  if (!fontsLoaded && !fontError) return null;
-
   return (
-    <Animated.View
-      key={isLoggedIn ? "app" : "auth"}
-      entering={FadeIn.duration(300)}
-      exiting={FadeOut.duration(200)}
-      style={styles.root}
-    >
-      <Slot />
-    </Animated.View>
+    <>
+      <Animated.View
+        key={isLoggedIn ? "app" : "auth"}
+        entering={FadeIn.duration(300)}
+        exiting={FadeOut.duration(200)}
+        style={styles.root}
+      >
+        <Slot />
+      </Animated.View>
+      {!appReady && <SplashOverlay />}
+    </>
   );
 }
 

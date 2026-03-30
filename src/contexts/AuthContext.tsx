@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
+import { getLocales } from "expo-localization";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 type AuthContextType = {
@@ -31,9 +32,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendOtp = async (phone: string, options?: { shouldCreateUser?: boolean }) => {
+    const shouldCreate = options?.shouldCreateUser ?? false;
+    const langCode = getLocales()[0]?.languageCode ?? "tr";
+    const language = langCode === "tr" ? "tr-TR" : "en-US";
     const { error } = await supabase.auth.signInWithOtp({
       phone,
-      options: { shouldCreateUser: options?.shouldCreateUser ?? false },
+      options: {
+        shouldCreateUser: shouldCreate,
+        ...(shouldCreate && { data: { language } }),
+      },
     });
     if (error) throw error;
   };

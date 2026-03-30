@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import * as Burnt from "burnt";
 import { useHeader } from "@/contexts/HeaderContext";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
@@ -18,8 +19,17 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     try {
       await logout();
+      Burnt.toast({
+        title: "Çıkış yapıldı.",
+        preset: "done",
+        haptic: "success",
+      });
     } catch (error) {
-      Alert.alert("Hata", (error as Error).message);
+      Burnt.toast({
+        title: "Çıkış yapılamadı.",
+        preset: "error",
+        haptic: "error",
+      });
     }
   };
 
