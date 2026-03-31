@@ -3,7 +3,7 @@ import { SymbolView } from "expo-symbols";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, FlatList, Pressable, StyleSheet, View } from "react-native";
-import Animated, { FadeIn, FadeInUp, FadeOut } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInLeft, FadeInRight, FadeInUp, FadeOut, FadeOutLeft, FadeOutRight } from "react-native-reanimated";
 import { Text } from "./Text";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -45,6 +45,7 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
   const today = useMemo(() => new Date(), []);
   const [expanded, setExpanded] = useState(false);
   const [viewingDate, setViewingDate] = useState(selectedDate);
+  const [slideDirection, setSlideDirection] = useState<"left" | "right">("right");
 
   const days = useMemo(
     () => getMonthDays(selectedDate.getFullYear(), selectedDate.getMonth()),
@@ -125,10 +126,12 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
   }, [viewingDate.getFullYear(), viewingDate.getMonth()]);
 
   const goToPrevMonth = useCallback(() => {
+    setSlideDirection("left");
     setViewingDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   }, []);
 
   const goToNextMonth = useCallback(() => {
+    setSlideDirection("right");
     setViewingDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
   }, []);
 
@@ -214,38 +217,45 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
             ))}
           </View>
 
-          <View style={styles.gridBody}>
-            {Array.from({ length: firstDayOffset }).map((_, i) => (
-              <View key={`empty-${i}`} style={styles.gridCell} />
-            ))}
-            {gridDays.map((d) => {
-              const isToday = isSameDay(d, today);
-              const isSelected = isSameDay(d, selectedDate);
-              return (
-                <Pressable
-                  key={d.toISOString()}
-                  onPress={() => selectGridDay(d)}
-                  style={styles.gridCell}
-                >
-                  <View
-                    style={[
-                      styles.gridDayCircle,
-                      isToday && styles.gridDayToday,
-                      isSelected && styles.gridDaySelected,
-                    ]}
+          <View style={styles.gridBodyWrapper}>
+            <Animated.View
+              key={`${viewingDate.getFullYear()}-${viewingDate.getMonth()}`}
+              entering={slideDirection === "right" ? FadeInRight.duration(250) : FadeInLeft.duration(250)}
+              exiting={slideDirection === "right" ? FadeOutLeft.duration(200) : FadeOutRight.duration(200)}
+              style={styles.gridBody}
+            >
+              {Array.from({ length: firstDayOffset }).map((_, i) => (
+                <View key={`empty-${i}`} style={styles.gridCell} />
+              ))}
+              {gridDays.map((d) => {
+                const isToday = isSameDay(d, today);
+                const isSelected = isSameDay(d, selectedDate);
+                return (
+                  <Pressable
+                    key={d.toISOString()}
+                    onPress={() => selectGridDay(d)}
+                    style={styles.gridCell}
                   >
-                    <Text
+                    <View
                       style={[
-                        styles.gridDayText,
-                        isSelected && styles.gridDayTextSelected,
+                        styles.gridDayCircle,
+                        isToday && styles.gridDayToday,
+                        isSelected && styles.gridDaySelected,
                       ]}
                     >
-                      {d.getDate()}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
+                      <Text
+                        style={[
+                          styles.gridDayText,
+                          isSelected && styles.gridDayTextSelected,
+                        ]}
+                      >
+                        {d.getDate()}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </Animated.View>
           </View>
         </Animated.View>
       )}
@@ -363,6 +373,9 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     color: colors.primary,
     opacity: 0.5,
+  },
+  gridBodyWrapper: {
+    overflow: "hidden",
   },
   gridBody: {
     flexDirection: "row",
