@@ -20,7 +20,7 @@ export default function AgendaScreen() {
   useFocusEffect(
     useCallback(() => {
       setBackgroundColor("#336B57");
-      heightPercent.value = withTiming(60, { duration: 300 });
+      heightPercent.value = withTiming(70, { duration: 300 });
       return () => {
         setBackgroundColor(undefined);
         heightPercent.value = withTiming(0, { duration: 200 });
