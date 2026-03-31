@@ -298,8 +298,8 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   dayNumber: {
-    fontSize: 18,
-    fontFamily: "Inter_700Bold",
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
     color: colors.primary,
   },
   dayName: {
