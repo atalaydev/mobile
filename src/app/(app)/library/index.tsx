@@ -1,10 +1,12 @@
 import { useHeader } from "@/contexts/HeaderContext";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Text } from "@/components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LibraryScreen() {
+  const { t } = useTranslation();
   const { setBackgroundColor } = useHeader();
 
   useFocusEffect(
@@ -15,7 +17,7 @@ export default function LibraryScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <Text style={{ fontSize: 24 }}>Library</Text>
+      <Text style={{ fontSize: 24 }}>{t("tabs.library")}</Text>
     </SafeAreaView>
   );
 }

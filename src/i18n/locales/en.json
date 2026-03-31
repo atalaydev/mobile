@@ -1,6 +1,6 @@
 {
   "auth": {
-    "welcome": "Welcome to\nMiboso World!",
+    "welcome": "Welcome to\nMiboso!",
     "description": "You can sign in to follow events, consume useful content and explore. Sign in quickly with your phone number.",
     "login": "Sign In",
     "register": "Sign Up",
@@ -44,6 +44,9 @@
     "select": "Select Country",
     "close": "Close",
     "search": "Search..."
+  },
+  "support": {
+    "title": "Support"
   },
   "common": {
     "error": "Error",

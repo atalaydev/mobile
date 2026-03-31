@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode, type ColorValue } from "react";
+import { createContext, useContext, useState, type ReactNode, type ColorValue } from "react";
 
 type HeaderContextType = {
   backgroundColor: ColorValue | undefined;

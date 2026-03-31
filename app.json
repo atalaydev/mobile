@@ -8,7 +8,7 @@
     "scheme": "miboso",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.mibosowellbeing.miboso",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -23,10 +23,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.mibosowellbeing.miboso"
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",

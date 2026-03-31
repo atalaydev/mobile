@@ -45,6 +45,9 @@
     "close": "Kapat",
     "search": "Ara..."
   },
+  "support": {
+    "title": "Destek"
+  },
   "common": {
     "error": "Hata",
     "turnstileWaiting": "Doğrulama bekleniyor, lütfen bekleyin."

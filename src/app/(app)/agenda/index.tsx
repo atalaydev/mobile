@@ -1,15 +1,20 @@
 import { Text } from "@/components/Text";
+import { Calendar } from "@/components/Calendar";
+import { useAuth } from "@/contexts/AuthContext";
 import { useHeader } from "@/contexts/HeaderContext";
 import { Image } from "expo-image";
 import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 export default function AgendaScreen() {
   const { t } = useTranslation();
+  const { session } = useAuth();
   const { setBackgroundColor } = useHeader();
+  const name = session?.user?.user_metadata?.full_name as string | undefined;
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const heightPercent = useSharedValue(0);
 
   useFocusEffect(
@@ -38,9 +43,10 @@ export default function AgendaScreen() {
       </Animated.View>
       <View style={styles.content}>
         <View style={styles.greeting}>
-          <Text style={styles.greetingText}>{t("agenda.greeting")}</Text>
-          <Text style={styles.nameText} numberOfLines={1} adjustsFontSizeToFit>Ömer Atalay</Text>
+          <Text style={name ? styles.greetingText : styles.nameText}>{t("agenda.greeting")}</Text>
+          {name && <Text style={styles.nameText} numberOfLines={1} adjustsFontSizeToFit>{t("agenda.name", { name })}</Text>}
         </View>
+        <Calendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
       </View>
     </View>
   );
