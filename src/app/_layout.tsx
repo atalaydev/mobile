@@ -1,6 +1,7 @@
-import "@/i18n";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SplashOverlay } from "@/components/SplashOverlay";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import "@/i18n";
+import { client } from "@/lib/client";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -8,6 +9,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Slot, useRouter, useSegments, type Href } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
@@ -70,9 +72,11 @@ function AuthGate() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <AuthGate />
-    </AuthProvider>
+    <QueryClientProvider client={client}>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

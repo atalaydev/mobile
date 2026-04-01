@@ -43,6 +43,7 @@ export function Header() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   row: {
     flexDirection: "row",

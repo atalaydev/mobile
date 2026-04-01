@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, type ReactNode, type ColorValue } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
+import type { ColorValue } from "react-native";
 
 type HeaderContextType = {
   backgroundColor: ColorValue | undefined;

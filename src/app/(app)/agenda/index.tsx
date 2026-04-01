@@ -1,53 +1,91 @@
-import { Text } from "@/components/Text";
+import { ActivityCard } from "@/components/ActivityCard";
 import { Calendar } from "@/components/Calendar";
+import { EmptyAgenda } from "@/components/EmptyAgenda";
+import { Text } from "@/components/Text";
+import { UpcomingActivityCard, type Activity } from "@/components/UpcomingActivityCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeader } from "@/contexts/HeaderContext";
+import { useEventParticipations } from "@/hooks/queries/useEventParticipations";
 import { Image } from "expo-image";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 export default function AgendaScreen() {
   const { t } = useTranslation();
   const { session } = useAuth();
+  const router = useRouter();
   const { setBackgroundColor } = useHeader();
   const name = session?.user?.user_metadata?.full_name as string | undefined;
   const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const heightPercent = useSharedValue(0);
+
+  const { data: participations, isLoading } = useEventParticipations({
+    query: { prefetch: { event: true } },
+  });
+
+  useEffect(() => {
+    console.log("participations:", JSON.stringify(participations, null, 2));
+  }, [participations]);
+
+  const hasActivities = (participations?.length ?? 0) > 0;
+  const mockActivity: Activity = {
+    title: "İyi Yaş Almak İçin Hormon Sağlığında Dikkat Edilmesi Gerekenler",
+    imageUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800",
+    locationType: "Yüz yüze",
+    location: "Beykoz, Istanbul",
+    startDate: new Date(Date.now() + 3 * 60 * 60 * 1000),
+    startTime: "18.30",
+    endTime: "20.30",
+    host: { name: "Furkan Derinsu", avatarUrl: "https://i.pravatar.cc/100?img=11" },
+  };
 
   useFocusEffect(
     useCallback(() => {
       setBackgroundColor("#336B57");
-      heightPercent.value = withTiming(70, { duration: 300 });
       return () => {
         setBackgroundColor(undefined);
-        heightPercent.value = withTiming(0, { duration: 200 });
       };
     }, [setBackgroundColor])
   );
 
-  const greenStyle = useAnimatedStyle(() => ({
-    height: `${heightPercent.value}%`,
-  }));
-
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.greenBackground, greenStyle]}>
+      <View style={styles.stickySection}>
         <Image
           source={require("@/assets/images/clover.svg")}
           style={styles.clover}
           contentFit="contain"
         />
-      </Animated.View>
-      <View style={styles.content}>
         <View style={styles.greeting}>
           <Text style={name ? styles.greetingText : styles.nameText}>{t("agenda.greeting")}</Text>
           {name && <Text style={styles.nameText} numberOfLines={1} adjustsFontSizeToFit>{t("agenda.name", { name })}</Text>}
         </View>
         <Calendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
       </View>
+      {hasActivities ? (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.activities}>
+            <UpcomingActivityCard activity={mockActivity} onJoin={() => {}} />
+            <View style={{ marginTop: 12, gap: 10 }}>
+              <ActivityCard
+                title="İyi Yaş Almak İçin Hormon Sağlığında Dikkat Edilmesi Gerekenler"
+                time="18.30 - 20.30"
+                onPress={() => {}}
+              />
+              <ActivityCard
+                title="İyi Yaş Almak İçin Hormon Sağlığında Dikkat Edilmesi Gerekenler"
+                time="18.30 - 20.30"
+                onPress={() => {}}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      ) : (
+        <View style={styles.emptyContainer}>
+          <EmptyAgenda onExplore={() => router.navigate("/explore")} />
+        </View>
+      )}
     </View>
   );
 }
@@ -57,23 +95,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F5F5F5",
   },
-  greenBackground: {
+  clover: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 0,
+    top: 30,
+    right: -20,
+    width: 180,
+    height: 180,
+    opacity: 0.15,
+  },
+  stickySection: {
     backgroundColor: "#336B57",
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
-    overflow: "hidden",
-  },
-  clover: {
-    position: "absolute",
-    right: -20,
-    width: 200,
-    height: 200,
-    opacity: 0.15,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    marginTop: -40,
+    paddingTop: 40,
+    zIndex: 1,
   },
   content: {
     flex: 1,
@@ -90,5 +128,15 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     color: "#fff",
+  },
+  activities: {
+    marginTop: 16,
+    paddingBottom: 100,
+  },
+  emptyContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 100,
   },
 });
