@@ -41,9 +41,10 @@ function isPast(date: Date, today: Date) {
 type Props = {
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
+  activeDays?: Set<string>;
 };
 
-export function Calendar({ selectedDate, onSelectDate }: Props) {
+export function Calendar({ selectedDate, onSelectDate, activeDays }: Props) {
   const { i18n } = useTranslation();
   const locale = i18n.language === "tr" ? "tr-TR" : "en-US";
   const today = useMemo(() => new Date(), []);
@@ -70,6 +71,11 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
     [locale],
   );
 
+  const hasActivity = useCallback(
+    (date: Date) => activeDays?.has(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`) ?? false,
+    [activeDays],
+  );
+
   const initialIndex = Math.max(0, days.findIndex((d) => isSameDay(d, selectedDate)));
 
   const renderItem = useCallback(
@@ -77,6 +83,7 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
       const selected = isSameDay(item, selectedDate);
       const isToday = isSameDay(item, today);
       const disabled = isPast(item, today);
+      const hasDot = hasActivity(item);
       const dayName = dayFormatter.format(item);
       const dayLabel = dayName.charAt(0).toUpperCase() + dayName.slice(1).replace(".", "");
 
@@ -94,10 +101,11 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
           <Text style={[styles.dayName, selected && styles.dayNameSelected]}>
             {dayLabel}
           </Text>
+          {hasDot && <View style={styles.dot} />}
         </Pressable>
       );
     },
-    [selectedDate, today, dayFormatter, onSelectDate],
+    [selectedDate, today, dayFormatter, onSelectDate, hasActivity],
   );
 
   const monthLabel = monthFormatter.format(selectedDate);
@@ -240,6 +248,7 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
                 const isToday = isSameDay(d, today);
                 const isSelected = isSameDay(d, selectedDate);
                 const disabled = isPast(d, today);
+                const hasDot = hasActivity(d);
                 return (
                   <Pressable
                     key={d.toISOString()}
@@ -263,6 +272,7 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
                         {d.getDate()}
                       </Text>
                     </View>
+                    {hasDot && <View style={styles.dot} />}
                   </Pressable>
                 );
               })}
@@ -281,7 +291,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#FBFCF4",
     borderRadius: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   listContent: {
     paddingLeft: 8,
@@ -291,6 +301,7 @@ const styles = StyleSheet.create({
     width: DAY_WIDTH,
     alignItems: "center",
     justifyContent: "center",
+    paddingBottom: 8,
   },
   dayNumberContainer: {
     width: 32,
@@ -394,7 +405,7 @@ const styles = StyleSheet.create({
   },
   gridCell: {
     width: GRID_CELL,
-    height: GRID_CELL - 6,
+    height: GRID_CELL + 4,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -418,5 +429,13 @@ const styles = StyleSheet.create({
   },
   gridDayTextSelected: {
     color: "#fff",
+  },
+  dot: {
+    position: "absolute",
+    bottom: 0,
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
   },
 });

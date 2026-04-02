@@ -28,10 +28,9 @@ export default function AgendaScreen() {
   const timezone = (session?.user?.user_metadata?.timezone as string) ?? "Europe/Istanbul";
   const [selectedDate, setSelectedDate] = useState(() => new Date());
 
-  const dateRange = useMemo(() => {
+  const { dateRange, tzOffsetMs } = useMemo(() => {
     const toUTCStr = (date: Date) => date.toISOString().slice(0, 19) + "Z";
 
-    // Calculate tz offset by comparing UTC vs tz hour/minute via Intl
     const probe = new Date();
     const getHM = (tz: string) => {
       const p = new Intl.DateTimeFormat("en", {
@@ -46,21 +45,22 @@ export default function AgendaScreen() {
     const tzMin = tz.day * 1440 + tz.h * 60 + tz.m;
     const offsetMs = (tzMin - utcMin) * 60 * 1000;
 
-    // Selected date YYYY-MM-DD in user's tz
-    const parts = new Intl.DateTimeFormat("en", {
-      timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
-    }).formatToParts(selectedDate);
-    const g = (t: string) => parts.find((p) => p.type === t)!.value;
-    const dateStr = `${g("year")}-${g("month")}-${g("day")}`;
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
 
-    // Start: 00:00:00 in user's tz → UTC
-    const startDate = new Date(Date.parse(`${dateStr}T00:00:00Z`) - offsetMs);
+    // Start: today's 00:00:00 in user's tz → UTC
+    const today = new Date();
+    const todayDay = String(today.getDate()).padStart(2, "0");
+    const todayMonth = String(today.getMonth() + 1).padStart(2, "0");
+    const todayYear = today.getFullYear();
+    const startDate = new Date(Date.parse(`${todayYear}-${todayMonth}-${todayDay}T00:00:00Z`) - offsetMs);
 
-    // End: 23:59:59 in user's tz → UTC
-    const endDate = new Date(Date.parse(`${dateStr}T23:59:59Z`) - offsetMs);
+    // End: last day of selected month 23:59:59 in user's tz → UTC
+    const lastDay = new Date(year, selectedDate.getMonth() + 1, 0).getDate();
+    const endDate = new Date(Date.parse(`${year}-${month}-${String(lastDay).padStart(2, "0")}T23:59:59Z`) - offsetMs);
 
-    return `${toUTCStr(startDate)},${toUTCStr(endDate)}`;
-  }, [selectedDate, timezone]);
+    return { dateRange: `${toUTCStr(startDate)},${toUTCStr(endDate)}`, tzOffsetMs: offsetMs };
+  }, [selectedDate.getFullYear(), selectedDate.getMonth(), timezone]);
 
   const { data: participations, isLoading: isLoadingParticipations, isRefetching: isRefetchingParticipations, refetch: refetchParticipations } = useEventParticipations({
     query: { filters: { state: "confirmed", date__range: dateRange }, prefetch: { event: true } },
@@ -81,7 +81,7 @@ export default function AgendaScreen() {
     | { type: "participation"; data: NonNullable<typeof participations>[number] }
     | { type: "appointment"; data: NonNullable<typeof appointments>[number] };
 
-  const items = useMemo(() => {
+  const allItems = useMemo(() => {
     const now = Date.now();
     const all: AgendaItem[] = [];
 
@@ -100,6 +100,25 @@ export default function AgendaScreen() {
 
     return all;
   }, [participations, appointments]);
+
+  // Days that have activities (for calendar dots)
+  const activeDays = useMemo(() => {
+    const days = new Set<string>();
+    for (const item of allItems) {
+      const date = new Date(new Date(item.data.start_date!).getTime() + tzOffsetMs);
+      days.add(`${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`);
+    }
+    return days;
+  }, [allItems, tzOffsetMs]);
+
+  // Filter items for selected day
+  const items = useMemo(() => {
+    const selKey = `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}`;
+    return allItems.filter((item) => {
+      const date = new Date(new Date(item.data.start_date!).getTime() + tzOffsetMs);
+      return `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}` === selKey;
+    });
+  }, [allItems, selectedDate, tzOffsetMs]);
 
   const hasActivities = items.length > 0;
   const [first, ...rest] = items;
@@ -191,7 +210,7 @@ export default function AgendaScreen() {
           <Text style={name ? styles.greetingText : styles.nameText}>{t("agenda.greeting")}</Text>
           {name && <Text style={styles.nameText} numberOfLines={1} adjustsFontSizeToFit>{t("agenda.name", { name })}</Text>}
         </View>
-        <Calendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+        <Calendar selectedDate={selectedDate} onSelectDate={setSelectedDate} activeDays={activeDays} />
       </View>
       {isLoading ? (
         <View style={styles.loadingContainer}>
