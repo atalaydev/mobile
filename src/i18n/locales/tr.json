@@ -32,7 +32,8 @@
   },
   "agenda": {
     "greeting": "Merhaba",
-    "name": "{{name}}"
+    "name": "{{name}}",
+    "expert": "Eğitmen"
   },
   "profile": {
     "title": "Profile",

@@ -17,6 +17,7 @@ export function useEventParticipations(options?: useEventParticipationsOptions) 
 
       return response.results;
     },
+    retry: false,
     enabled: options?.enabled ?? true,
   });
 }

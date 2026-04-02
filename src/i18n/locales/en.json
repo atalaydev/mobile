@@ -32,7 +32,8 @@
   },
   "agenda": {
     "greeting": "Hello",
-    "name": "{{name}}"
+    "name": "{{name}}",
+    "expert": "Instructor"
   },
   "profile": {
     "title": "Profile",

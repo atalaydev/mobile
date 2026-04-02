@@ -8,7 +8,7 @@ const eventParticipationPrefetcher = Prefetcher<EventParticipation>({
   event: {
     extractor: (object) => object.event_id,
     resolver: async (ids) => {
-      const { results } = await getEvents({ filters: { id__in: ids.join(",") }, limit: ids.length });
+      const { results } = await getEvents({ filters: { id__in: ids.join(",") }, limit: ids.length, prefetch: { expert: true } });
 
       return Object.fromEntries(results.map((e) => [e.id, e]));
     },

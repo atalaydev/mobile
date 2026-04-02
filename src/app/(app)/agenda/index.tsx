@@ -2,15 +2,22 @@ import { ActivityCard } from "@/components/ActivityCard";
 import { Calendar } from "@/components/Calendar";
 import { EmptyAgenda } from "@/components/EmptyAgenda";
 import { Text } from "@/components/Text";
-import { UpcomingActivityCard, type Activity } from "@/components/UpcomingActivityCard";
+import { UpcomingActivityCard } from "@/components/UpcomingActivityCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHeader } from "@/contexts/HeaderContext";
+import { useAppointments } from "@/hooks/queries/useAppointments";
 import { useEventParticipations } from "@/hooks/queries/useEventParticipations";
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+
+const locationTypeLabels: Record<string, string> = {
+  remote: "Online",
+  hybrid: "Hibrit",
+  "in-person": "Yüz yüze",
+};
 
 export default function AgendaScreen() {
   const { t } = useTranslation();
@@ -18,27 +25,150 @@ export default function AgendaScreen() {
   const router = useRouter();
   const { setBackgroundColor } = useHeader();
   const name = session?.user?.user_metadata?.full_name as string | undefined;
+  const timezone = (session?.user?.user_metadata?.timezone as string) ?? "Europe/Istanbul";
   const [selectedDate, setSelectedDate] = useState(() => new Date());
 
-  const { data: participations, isLoading } = useEventParticipations({
-    query: { prefetch: { event: true } },
+  const dateRange = useMemo(() => {
+    const toUTCStr = (date: Date) => date.toISOString().slice(0, 19) + "Z";
+
+    // Calculate tz offset by comparing UTC vs tz hour/minute via Intl
+    const probe = new Date();
+    const getHM = (tz: string) => {
+      const p = new Intl.DateTimeFormat("en", {
+        timeZone: tz, hour: "numeric", minute: "numeric", day: "numeric", hour12: false,
+      }).formatToParts(probe);
+      const v = (t: string) => Number(p.find((x) => x.type === t)!.value);
+      return { day: v("day"), h: v("hour"), m: v("minute") };
+    };
+    const utc = getHM("UTC");
+    const tz = getHM(timezone);
+    const utcMin = utc.day * 1440 + utc.h * 60 + utc.m;
+    const tzMin = tz.day * 1440 + tz.h * 60 + tz.m;
+    const offsetMs = (tzMin - utcMin) * 60 * 1000;
+
+    // Selected date YYYY-MM-DD in user's tz
+    const parts = new Intl.DateTimeFormat("en", {
+      timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(selectedDate);
+    const g = (t: string) => parts.find((p) => p.type === t)!.value;
+    const dateStr = `${g("year")}-${g("month")}-${g("day")}`;
+
+    // Start: 00:00:00 in user's tz → UTC
+    const startDate = new Date(Date.parse(`${dateStr}T00:00:00Z`) - offsetMs);
+
+    // End: 23:59:59 in user's tz → UTC
+    const endDate = new Date(Date.parse(`${dateStr}T23:59:59Z`) - offsetMs);
+
+    return `${toUTCStr(startDate)},${toUTCStr(endDate)}`;
+  }, [selectedDate, timezone]);
+
+  const { data: participations, isLoading: isLoadingParticipations, isRefetching: isRefetchingParticipations, refetch: refetchParticipations } = useEventParticipations({
+    query: { filters: { state: "confirmed", date__range: dateRange }, prefetch: { event: true } },
   });
 
-  useEffect(() => {
-    console.log("participations:", JSON.stringify(participations, null, 2));
-  }, [participations]);
+  const { data: appointments, isLoading: isLoadingAppointments, isRefetching: isRefetchingAppointments, refetch: refetchAppointments } = useAppointments({
+    query: { filters: { state: "confirmed", date__range: dateRange }, prefetch: { expert: true, session_option: true } },
+  });
 
-  const hasActivities = (participations?.length ?? 0) > 0;
-  const mockActivity: Activity = {
-    title: "İyi Yaş Almak İçin Hormon Sağlığında Dikkat Edilmesi Gerekenler",
-    imageUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800",
-    locationType: "Yüz yüze",
-    location: "Beykoz, Istanbul",
-    startDate: new Date(Date.now() + 3 * 60 * 60 * 1000),
-    startTime: "18.30",
-    endTime: "20.30",
-    host: { name: "Furkan Derinsu", avatarUrl: "https://i.pravatar.cc/100?img=11" },
+  const isLoading = isLoadingParticipations || isLoadingAppointments;
+  const isRefetching = isRefetchingParticipations || isRefetchingAppointments;
+  const refetch = useCallback(() => {
+    refetchParticipations();
+    refetchAppointments();
+  }, [refetchParticipations, refetchAppointments]);
+
+  type AgendaItem =
+    | { type: "participation"; data: NonNullable<typeof participations>[number] }
+    | { type: "appointment"; data: NonNullable<typeof appointments>[number] };
+
+  const items = useMemo(() => {
+    const now = Date.now();
+    const all: AgendaItem[] = [];
+
+    for (const p of participations ?? []) {
+      if (new Date(p.end_date).getTime() < now) continue;
+      all.push({ type: "participation", data: p });
+    }
+
+    for (const a of appointments ?? []) {
+      if (!a.start_date || !a.end_date) continue;
+      if (new Date(a.end_date).getTime() < now) continue;
+      all.push({ type: "appointment", data: a });
+    }
+
+    all.sort((a, b) => new Date(a.data.start_date!).getTime() - new Date(b.data.start_date!).getTime());
+
+    return all;
+  }, [participations, appointments]);
+
+  const hasActivities = items.length > 0;
+  const [first, ...rest] = items;
+
+  const getItemTitle = (item: AgendaItem) => {
+    if (item.type === "participation") return item.data.event?.title ?? "";
+    return typeof item.data.session_option === "object" ? item.data.session_option.title : "";
   };
+
+  const getItemBanner = (item: AgendaItem) => {
+    if (item.type === "participation") return item.data.event?.banner ?? "";
+    return typeof item.data.session_option === "object" ? item.data.session_option.banner : "";
+  };
+
+  const getItemExpert = (item: AgendaItem) => {
+    if (item.type === "participation") {
+      const expert = item.data.event?.expert;
+      return typeof expert === "object" ? expert : null;
+    }
+    const expert = item.data.expert;
+    return typeof expert === "object" ? expert : null;
+  };
+
+  const getItemLocation = (item: AgendaItem) => {
+    if (item.type === "participation") {
+      const event = item.data.event;
+      if (!event) return { label: "", location: "" };
+      return {
+        label: locationTypeLabels[event.type] ?? event.type,
+        location: event.type !== "remote" ? (event.location ?? "") : "",
+      };
+    }
+    return { label: "Online", location: "" };
+  };
+
+  const renderUpcoming = (item: AgendaItem) => {
+    const expert = getItemExpert(item);
+    const loc = getItemLocation(item);
+    return (
+      <UpcomingActivityCard
+        activity={{
+          title: getItemTitle(item),
+          imageUrl: getItemBanner(item),
+          locationType: loc.label,
+          location: loc.location,
+          startDate: new Date(item.data.start_date!),
+          startTime: new Date(item.data.start_date!).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }),
+          endTime: new Date(item.data.end_date!).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }),
+          host: {
+            name: expert?.title ?? "",
+            subtitle: expert?.subtitle ?? null,
+            avatarUrl: expert?.photo ?? "",
+          },
+        }}
+        variant={item.type === "participation" ? "event" : "appointment"}
+        onJoin={() => {}}
+      />
+    );
+  };
+
+  const renderSmallCard = (item: AgendaItem) => (
+    <ActivityCard
+      key={item.data.id}
+      title={getItemTitle(item)}
+      startDate={item.data.start_date!}
+      timezone={timezone}
+      onPress={() => {}}
+    />
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -63,28 +193,36 @@ export default function AgendaScreen() {
         </View>
         <Calendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
       </View>
-      {hasActivities ? (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#336B57" />
+        </View>
+      ) : hasActivities ? (
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#336B57" />}
+        >
           <View style={styles.activities}>
-            <UpcomingActivityCard activity={mockActivity} onJoin={() => {}} />
-            <View style={{ marginTop: 12, gap: 10 }}>
-              <ActivityCard
-                title="İyi Yaş Almak İçin Hormon Sağlığında Dikkat Edilmesi Gerekenler"
-                time="18.30 - 20.30"
-                onPress={() => {}}
-              />
-              <ActivityCard
-                title="İyi Yaş Almak İçin Hormon Sağlığında Dikkat Edilmesi Gerekenler"
-                time="18.30 - 20.30"
-                onPress={() => {}}
-              />
-            </View>
+            {first && renderUpcoming(first)}
+            {rest.length > 0 && (
+              <View style={styles.restCards}>
+                {rest.map((item) => renderSmallCard(item))}
+              </View>
+            )}
           </View>
         </ScrollView>
       ) : (
-        <View style={styles.emptyContainer}>
-          <EmptyAgenda onExplore={() => router.navigate("/explore")} />
-        </View>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.emptyScroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#336B57" />}
+        >
+          <View style={styles.emptyContainer}>
+            <EmptyAgenda onExplore={() => router.navigate("/explore")} />
+          </View>
+        </ScrollView>
       )}
     </View>
   );
@@ -133,9 +271,20 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingBottom: 100,
   },
+  restCards: {
+    marginTop: 12,
+    gap: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyScroll: {
+    flexGrow: 1,
+  },
   emptyContainer: {
     flex: 1,
-    paddingHorizontal: 20,
     marginTop: 16,
     marginBottom: 100,
   },

@@ -3,20 +3,27 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 type ActivityCardProps = {
   title: string;
-  time: string;
+  startDate: string;
+  timezone: string;
   onPress?: () => void;
 };
 
-export function ActivityCard({ title, time, onPress }: ActivityCardProps) {
+function formatDate(dateStr: string, timeZone: string) {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone });
+}
+
+export function ActivityCard({ title, startDate, timezone, onPress }: ActivityCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.top}>
         <Text style={styles.title}>{title}</Text>
       </View>
       <View style={styles.bottom}>
-        <Text style={styles.dateText}>{time}</Text>
+        <Text style={styles.dateText}>{formatDate(startDate, timezone)}</Text>
         <Pressable style={styles.button} onPress={onPress}>
-          <Text style={styles.buttonText}>Etkinliği İncele</Text>
+          <Text style={styles.buttonText}>Detaylı İncele</Text>
         </Pressable>
       </View>
     </View>

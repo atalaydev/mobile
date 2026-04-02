@@ -34,6 +34,10 @@ function isSameDay(a: Date, b: Date) {
   );
 }
 
+function isPast(date: Date, today: Date) {
+  return date < today && !isSameDay(date, today);
+}
+
 type Props = {
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
@@ -72,13 +76,15 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
     ({ item }: { item: Date }) => {
       const selected = isSameDay(item, selectedDate);
       const isToday = isSameDay(item, today);
+      const disabled = isPast(item, today);
       const dayName = dayFormatter.format(item);
       const dayLabel = dayName.charAt(0).toUpperCase() + dayName.slice(1).replace(".", "");
 
       return (
         <Pressable
-          onPress={() => onSelectDate(item)}
-          style={[styles.dayItem, !selected && { opacity: 0.7 }]}
+          onPress={() => !disabled && onSelectDate(item)}
+          style={[styles.dayItem, !selected && { opacity: disabled ? 0.3 : 0.7 }]}
+          disabled={disabled}
         >
           <View style={[styles.dayNumberContainer, isToday && styles.dayNumberToday, selected && styles.dayNumberSelected]}>
             <Text style={[styles.dayNumber, selected && styles.dayNumberTextSelected]}>
@@ -124,6 +130,9 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
     const dow = first.getDay(); // 0=Sun
     return dow === 0 ? 6 : dow - 1; // Monday-first
   }, [viewingDate.getFullYear(), viewingDate.getMonth()]);
+
+  const canGoPrev = viewingDate.getFullYear() > today.getFullYear() ||
+    (viewingDate.getFullYear() === today.getFullYear() && viewingDate.getMonth() > today.getMonth());
 
   const goToPrevMonth = useCallback(() => {
     setSlideDirection("left");
@@ -191,7 +200,7 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
         >
           <View style={styles.gridHeader}>
             <View style={styles.gridHeaderLeft}>
-              <Pressable onPress={goToPrevMonth} hitSlop={12}>
+              <Pressable onPress={goToPrevMonth} hitSlop={12} disabled={!canGoPrev} style={!canGoPrev && { opacity: 0.3 }}>
                 <SymbolView name="chevron.left" size={16} tintColor={colors.primary} />
               </Pressable>
               <Text style={styles.gridMonthText}>{capitalizedGridMonth}</Text>
@@ -230,11 +239,13 @@ export function Calendar({ selectedDate, onSelectDate }: Props) {
               {gridDays.map((d) => {
                 const isToday = isSameDay(d, today);
                 const isSelected = isSameDay(d, selectedDate);
+                const disabled = isPast(d, today);
                 return (
                   <Pressable
                     key={d.toISOString()}
-                    onPress={() => selectGridDay(d)}
-                    style={styles.gridCell}
+                    onPress={() => !disabled && selectGridDay(d)}
+                    style={[styles.gridCell, disabled && { opacity: 0.3 }]}
+                    disabled={disabled}
                   >
                     <View
                       style={[

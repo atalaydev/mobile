@@ -3,7 +3,9 @@ import { colors } from "@/constants/colors";
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
+import Animated, { FadeInUp } from "react-native-reanimated";
 
 export type Activity = {
   title: string;
@@ -13,7 +15,7 @@ export type Activity = {
   startDate: Date;
   startTime: string;
   endTime: string;
-  host: { name: string; avatarUrl: string };
+  host: { name: string; subtitle: string | null; avatarUrl: string };
 };
 
 function useCountdown(targetDate: Date) {
@@ -25,35 +27,43 @@ function useCountdown(targetDate: Date) {
   }, []);
 
   const remaining = targetDate.getTime() - now;
-  if (remaining <= 0) return null;
+  if (!Number.isFinite(remaining) || remaining <= 0) return { label: null, long: null, remainingMs: remaining };
 
-  const hours = Math.floor(remaining / (1000 * 60 * 60));
+  const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
 
-  if (hours > 0) {
-    return `${hours}sa ${minutes}dk`;
+  if (days > 0) {
+    const long = `${days} gün${hours > 0 ? ` ${hours} saat` : ""}`;
+    return { label: `${days}g ${hours}sa`, long, remainingMs: remaining };
   }
-  return `${minutes}dk ${seconds}sn`;
+  if (hours > 0) {
+    const long = `${hours} saat${minutes > 0 ? ` ${minutes} dakika` : ""}`;
+    return { label: `${hours}sa ${minutes}dk`, long, remainingMs: remaining };
+  }
+  const long = `${minutes} dakika ${seconds} saniye`;
+  return { label: `${minutes}dk ${seconds}sn`, long, remainingMs: remaining };
 }
 
 type UpcomingActivityCardProps = {
   activity: Activity;
+  variant: "event" | "appointment";
   onJoin?: () => void;
 };
 
-export function UpcomingActivityCard({ activity, onJoin }: UpcomingActivityCardProps) {
-  const countdown = useCountdown(activity.startDate);
+export function UpcomingActivityCard({ activity, variant, onJoin }: UpcomingActivityCardProps) {
+  const { t } = useTranslation();
+  const { label: countdown, long: countdownLong, remainingMs } = useCountdown(activity.startDate);
+  const isNear = remainingMs <= 10 * 60 * 1000;
 
   return (
-    <View style={styles.card}>
+    <Animated.View entering={FadeInUp.duration(400)} style={styles.card}>
       <View style={styles.imageContainer}>
         <Image source={{ uri: activity.imageUrl }} style={styles.image} contentFit="cover" />
-        {countdown && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{countdown}</Text>
-          </View>
-        )}
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{variant === "event" ? "Etkinlik" : "Seans"}</Text>
+        </View>
       </View>
 
       <View style={styles.body}>
@@ -62,7 +72,7 @@ export function UpcomingActivityCard({ activity, onJoin }: UpcomingActivityCardP
         <View style={styles.infoRow}>
           <SymbolView name="mappin.and.ellipse" size={16} tintColor={colors.textSecondary} />
           <Text style={styles.infoText}>
-            {activity.locationType} | {activity.location}
+            {activity.locationType}{activity.location ? ` | ${activity.location}` : ""}
           </Text>
         </View>
 
@@ -79,16 +89,18 @@ export function UpcomingActivityCard({ activity, onJoin }: UpcomingActivityCardP
             style={styles.avatar}
           />
           <View>
-            <Text style={styles.hostLabel}>Eğitmen</Text>
+            <Text style={styles.hostLabel}>{activity.host.subtitle ?? t("agenda.expert")}</Text>
             <Text style={styles.hostName}>{activity.host.name}</Text>
           </View>
         </View>
 
-        <Pressable style={styles.button} onPress={onJoin}>
-          <Text style={styles.buttonText}>Etkinliğe Katıl</Text>
+        <Pressable style={[styles.button, !isNear && styles.buttonDisabled]} onPress={onJoin} disabled={!isNear}>
+          <Text style={styles.buttonText}>
+            {isNear ? "Katıl" : `${countdownLong} sonra başlıyor..`}
+          </Text>
         </Pressable>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -109,7 +121,7 @@ const styles = StyleSheet.create({
   badge: {
     position: "absolute",
     top: 12,
-    left: 12,
+    right: 12,
     backgroundColor: "#F5A623",
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -176,9 +188,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
   },
+  buttonDisabled: {
+    backgroundColor: "#336B57",
+    opacity: 0.4,
+  },
   buttonText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
+    color: "#fff",
+  },
+  buttonTextDisabled: {
     color: "#fff",
   },
 });
