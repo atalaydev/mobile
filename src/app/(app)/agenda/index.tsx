@@ -1,3 +1,5 @@
+import { joinAppointment } from "@/api/appointments";
+import { joinEventParticipation } from "@/api/event-participations";
 import { ActivityCard } from "@/components/ActivityCard";
 import { Calendar } from "@/components/Calendar";
 import { EmptyAgenda } from "@/components/EmptyAgenda";
@@ -23,7 +25,7 @@ export default function AgendaScreen() {
   const { t } = useTranslation();
   const { session } = useAuth();
   const router = useRouter();
-  const { setBackgroundColor } = useHeader();
+  const { setVariant } = useHeader();
   const name = session?.user?.user_metadata?.full_name as string | undefined;
   const timezone = (session?.user?.user_metadata?.timezone as string) ?? "Europe/Istanbul";
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -154,6 +156,21 @@ export default function AgendaScreen() {
     return { label: "Online", location: "" };
   };
 
+  const handleJoin = async (item: AgendaItem) => {
+    try {
+      console.log("join: fetching credentials for", item.type, item.data.id);
+      const credentials = item.type === "participation"
+        ? await joinEventParticipation(item.data.id)
+        : await joinAppointment(item.data.id);
+      console.log("join: credentials received", JSON.stringify(credentials));
+      const userName = session?.user?.user_metadata?.full_name ?? `*****${session?.user?.phone?.slice(-4)}`;
+      router.push({ pathname: "/zoom", params: { token: credentials.token, id: credentials.id, password: credentials.password, userName } });
+      console.log("join: zoom meeting started");
+    } catch (e) {
+      console.error("join failed:", e);
+    }
+  };
+
   const renderUpcoming = (item: AgendaItem) => {
     const expert = getItemExpert(item);
     const loc = getItemLocation(item);
@@ -174,7 +191,7 @@ export default function AgendaScreen() {
           },
         }}
         variant={item.type === "participation" ? "event" : "appointment"}
-        onJoin={() => {}}
+        onJoin={() => handleJoin(item)}
       />
     );
   };
@@ -191,11 +208,8 @@ export default function AgendaScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setBackgroundColor("#336B57");
-      return () => {
-        setBackgroundColor(undefined);
-      };
-    }, [setBackgroundColor])
+      setVariant("primary");
+    }, [setVariant])
   );
 
   return (
@@ -239,7 +253,7 @@ export default function AgendaScreen() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#336B57" />}
         >
           <View style={styles.emptyContainer}>
-            <EmptyAgenda onExplore={() => router.navigate("/explore")} />
+            <EmptyAgenda onExplore={() => router.push("/explore")} />
           </View>
         </ScrollView>
       )}

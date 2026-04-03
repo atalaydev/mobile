@@ -9,13 +9,13 @@ import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
-  const { setBackgroundColor } = useHeader();
+  const { setVariant } = useHeader();
   const { logout } = useAuth();
 
   useFocusEffect(
     useCallback(() => {
-      setBackgroundColor(undefined);
-    }, [setBackgroundColor])
+      setVariant("light");
+    }, [setVariant])
   );
 
   const handleLogout = async () => {

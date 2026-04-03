@@ -10,11 +10,10 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Slot, useRouter, useSegments, type Href } from "expo-router";
+import { Stack, useRouter, useSegments, type Href } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { StyleSheet, View } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,10 +38,11 @@ function AuthGate() {
 
   useEffect(() => {
     if (isLoading || !fontsLoaded) return;
-    const inApp = segments[0] === "(app)";
+    const currentSegments = segments;
+    const inApp = currentSegments[0] === "(app)";
 
     if (!isLoggedIn && inApp) {
-      redirectTo.current = ("/" + segments.join("/")) as Href;
+      redirectTo.current = ("/" + currentSegments.join("/")) as Href;
       router.replace("/login");
     } else if (isLoggedIn && !inApp) {
       const target: Href = redirectTo.current ?? "/";
@@ -53,18 +53,19 @@ function AuthGate() {
     if (!appReady) {
       setTimeout(() => setAppReady(true), 500);
     }
-  }, [isLoggedIn, isLoading, fontsLoaded, segments]);
+  }, [isLoggedIn, isLoading, fontsLoaded]);
 
   return (
     <>
-      <Animated.View
-        key={isLoggedIn ? "app" : "auth"}
-        entering={FadeIn.duration(300)}
-        exiting={FadeOut.duration(200)}
-        style={styles.root}
-      >
-        <Slot />
-      </Animated.View>
+      <View style={styles.root}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(app)" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="support" />
+          <Stack.Screen name="notifications" options={{ presentation: "formSheet", headerShown: true, headerTitle: "Bildirimler" }} />
+          <Stack.Screen name="zoom" options={{ presentation: "fullScreenModal", headerShown: false }} />
+        </Stack>
+      </View>
       {!appReady && <SplashOverlay />}
     </>
   );

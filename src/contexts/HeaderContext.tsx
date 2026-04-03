@@ -1,18 +1,19 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import type { ColorValue } from "react-native";
+
+type HeaderVariant = "primary" | "light";
 
 type HeaderContextType = {
-  backgroundColor: ColorValue | undefined;
-  setBackgroundColor: (color: ColorValue | undefined) => void;
+  variant: HeaderVariant;
+  setVariant: (variant: HeaderVariant) => void;
 };
 
 const HeaderContext = createContext<HeaderContextType | null>(null);
 
 export function HeaderProvider({ children }: { children: ReactNode }) {
-  const [backgroundColor, setBackgroundColor] = useState<ColorValue | undefined>("#336B57");
+  const [variant, setVariant] = useState<HeaderVariant>("primary");
 
   return (
-    <HeaderContext.Provider value={{ backgroundColor, setBackgroundColor }}>
+    <HeaderContext.Provider value={{ variant, setVariant }}>
       {children}
     </HeaderContext.Provider>
   );

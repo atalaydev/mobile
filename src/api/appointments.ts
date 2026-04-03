@@ -3,6 +3,7 @@ import { getSessionOptions } from "@/api/session-options";
 import { Prefetcher } from "@/api/prefetch";
 import { Options, Response } from "@/api/types";
 import { axios } from "@/lib/axios";
+import { ZoomCredentials } from "@/types/zoom";
 import { Appointment } from "@/types/appointment";
 
 const appointmentPrefetcher = Prefetcher<Appointment>({
@@ -38,5 +39,10 @@ export const getAppointments = async (options?: Options): Promise<Response<Appoi
 
   data.results = await appointmentPrefetcher(data.results, options?.prefetch);
 
+  return data;
+};
+
+export const joinAppointment = async (id: string): Promise<ZoomCredentials> => {
+  const { data } = await axios.get<ZoomCredentials>(`/1/appointments/${id}/join/`);
   return data;
 };

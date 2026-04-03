@@ -3,6 +3,7 @@ import { Prefetcher } from "@/api/prefetch";
 import { Options, Response } from "@/api/types";
 import { axios } from "@/lib/axios";
 import { EventParticipation } from "@/types/eventParticipation";
+import { ZoomCredentials } from "@/types/zoom";
 
 const eventParticipationPrefetcher = Prefetcher<EventParticipation>({
   event: {
@@ -28,5 +29,10 @@ export const getEventParticipations = async (options?: Options): Promise<Respons
 
   data.results = await eventParticipationPrefetcher(data.results, options?.prefetch);
 
+  return data;
+};
+
+export const joinEventParticipation = async (id: string): Promise<ZoomCredentials> => {
+  const { data } = await axios.get<ZoomCredentials>(`/1/event-participations/${id}/join/`);
   return data;
 };
