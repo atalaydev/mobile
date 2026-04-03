@@ -38,6 +38,7 @@ function AuthGate() {
   }, [fontsLoaded, fontError]);
 
   useEffect(() => {
+    if (!isLoggedIn) return;
     Notifications.requestPermissionsAsync().then(async ({ status }) => {
       if (status !== "granted") return;
       try {
@@ -47,7 +48,7 @@ function AuthGate() {
         console.warn("push token alınamadı:", e);
       }
     });
-  }, []);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (isLoading || !fontsLoaded) return;
