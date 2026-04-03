@@ -10,9 +10,10 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments, type Href } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
+import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
@@ -21,7 +22,7 @@ function AuthGate() {
   const { isLoggedIn, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const redirectTo = useRef<Href | null>(null);
+
   const [appReady, setAppReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -37,17 +38,26 @@ function AuthGate() {
   }, [fontsLoaded, fontError]);
 
   useEffect(() => {
+    Notifications.requestPermissionsAsync().then(async ({ status }) => {
+      if (status !== "granted") return;
+      try {
+        const token = await Notifications.getExpoPushTokenAsync();
+        console.log("expo push token:", token.data);
+      } catch (e) {
+        console.warn("push token alınamadı:", e);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     if (isLoading || !fontsLoaded) return;
     const currentSegments = segments;
     const inApp = currentSegments[0] === "(app)";
 
     if (!isLoggedIn && inApp) {
-      redirectTo.current = ("/" + currentSegments.join("/")) as Href;
       router.replace("/login");
     } else if (isLoggedIn && !inApp) {
-      const target: Href = redirectTo.current ?? "/";
-      redirectTo.current = null;
-      router.replace(target);
+      router.replace("/");
     }
 
     if (!appReady) {

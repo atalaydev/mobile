@@ -1,0 +1,124 @@
+diff --git a/ios/RNZoomSDK.m b/ios/RNZoomSDK.m
+--- a/ios/RNZoomSDK.m
++++ b/ios/RNZoomSDK.m
+@@ -1,6 +1,63 @@
+ #import <React/RCTConvert.h>
+ #import "RNZoomSDK.h"
++#import <objc/runtime.h>
+
++static void hideShareButtonInView(UIView *view) {
++    for (UIView *subview in view.subviews) {
++        if ([subview isKindOfClass:[UIButton class]]) {
++            UIButton *button = (UIButton *)subview;
++            UIImage *image = [button imageForState:UIControlStateNormal];
++            if (image && CGRectGetWidth(button.frame) < 60 && CGRectGetHeight(button.frame) < 60) {
++                CGPoint pos = [button convertPoint:button.bounds.origin toView:button.window];
++                if (pos.x > UIScreen.mainScreen.bounds.size.width / 2) {
++                    button.hidden = YES;
++                }
++            }
++        }
++        hideShareButtonInView(subview);
++    }
++}
++
++@implementation UIViewController (ZoomShareHide)
++
+++ (void)load {
++    static dispatch_once_t onceToken;
++    dispatch_once(&onceToken, ^{
++        Class class = [self class];
++        SEL originalSelector = @selector(viewDidAppear:);
++        SEL swizzledSelector = @selector(zoom_viewDidAppear:);
++
++        Method originalMethod = class_getInstanceMethod(class, originalSelector);
++        Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
++
++        BOOL didAdd = class_addMethod(class, originalSelector,
++                                       method_getImplementation(swizzledMethod),
++                                       method_getTypeEncoding(swizzledMethod));
++        if (didAdd) {
++            class_replaceMethod(class, swizzledSelector,
++                                method_getImplementation(originalMethod),
++                                method_getTypeEncoding(originalMethod));
++        } else {
++            method_exchangeImplementations(originalMethod, swizzledMethod);
++        }
++    });
++}
++
++- (void)zoom_viewDidAppear:(BOOL)animated {
++    [self zoom_viewDidAppear:animated];
++
++    NSString *className = NSStringFromClass([self class]);
++    if ([className containsString:@"MeetingInfo"] || [className containsString:@"meetinginfo"] || [className containsString:@"ZMInfo"]) {
++        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
++            hideShareButtonInView(self.view);
++            self.navigationItem.rightBarButtonItem = nil;
++            self.navigationItem.rightBarButtonItems = @[];
++        });
++    }
++}
++
++@end
++
+ @implementation RNZoomSDK
+
+ - (dispatch_queue_t)methodQueue
+@@ -158,6 +215,24 @@
+         }
+         if ([config objectForKey:@"disableClearWebKitCache"]) {
+             [meetingSetting disableClearWebKitCache:[[config valueForKey:@"disableClearWebKitCache"] boolValue]];
++        }
++        if ([config objectForKey:@"meetingMoreHidden"]) {
++            meetingSetting.meetingMoreHidden = [[config valueForKey:@"meetingMoreHidden"] boolValue];
++        }
++        if ([config objectForKey:@"meetingPasswordHidden"]) {
++            meetingSetting.meetingPasswordHidden = [[config valueForKey:@"meetingPasswordHidden"] boolValue];
++        }
++        if ([config objectForKey:@"meetingInviteHidden"]) {
++            meetingSetting.meetingInviteHidden = [[config valueForKey:@"meetingInviteHidden"] boolValue];
++        }
++        if ([config objectForKey:@"meetingInviteUrlHidden"]) {
++            meetingSetting.meetingInviteUrlHidden = [[config valueForKey:@"meetingInviteUrlHidden"] boolValue];
++        }
++        if ([config objectForKey:@"disableCopyMeetingUrl"]) {
++            [meetingSetting disableCopyMeetingUrl:[[config valueForKey:@"disableCopyMeetingUrl"] boolValue]];
++        }
++        if ([config objectForKey:@"disableDriveMode"]) {
++            [meetingSetting disableDriveMode:[[config valueForKey:@"disableDriveMode"] boolValue]];
+         }
+     }
+ }
+diff --git a/src/native/ZoomSDK.ts b/src/native/ZoomSDK.ts
+--- a/src/native/ZoomSDK.ts
++++ b/src/native/ZoomSDK.ts
+@@ -21,6 +21,12 @@
+     disableVideoPreview?: boolean;
+     disableClearWebKitCache?: boolean;
+     language?: string; //Android only
++    meetingMoreHidden?: boolean;
++    meetingPasswordHidden?: boolean;
++    meetingInviteHidden?: boolean;
++    meetingInviteUrlHidden?: boolean;
++    disableCopyMeetingUrl?: boolean;
++    disableDriveMode?: boolean;
+ };
+
+ export type JoinMeetingConfig = {
+diff --git a/lib/typescript/native/ZoomSDK.d.ts b/lib/typescript/native/ZoomSDK.d.ts
+--- a/lib/typescript/native/ZoomSDK.d.ts
++++ b/lib/typescript/native/ZoomSDK.d.ts
+@@ -11,6 +11,12 @@
+     disableVideoPreview?: boolean;
+     disableClearWebKitCache?: boolean;
+     language?: string;
++    meetingMoreHidden?: boolean;
++    meetingPasswordHidden?: boolean;
++    meetingInviteHidden?: boolean;
++    meetingInviteUrlHidden?: boolean;
++    disableCopyMeetingUrl?: boolean;
++    disableDriveMode?: boolean;
+ };
+ export declare type JoinMeetingConfig = {
+     userName: string;

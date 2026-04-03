@@ -39,7 +39,17 @@ function ZoomMeeting() {
         await new Promise((r) => setTimeout(r, 500));
       }
 
-      // 3. Join
+      // 3. Configure meeting UI
+      zoom.updateMeetingSetting({
+        meetingMoreHidden: true,
+        meetingPasswordHidden: true,
+        meetingInviteHidden: true,
+        meetingInviteUrlHidden: true,
+        disableCopyMeetingUrl: true,
+        disableDriveMode: true,
+      });
+
+      // 4. Join
       setState("joining");
       try {
         await zoom.joinMeeting({
