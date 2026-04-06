@@ -11,23 +11,24 @@ import { useAppointments } from "@/hooks/queries/useAppointments";
 import { useEventParticipations } from "@/hooks/queries/useEventParticipations";
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
+import i18n from "i18next";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 
-const locationTypeLabels: Record<string, string> = {
-  remote: "Online",
-  hybrid: "Hibrit",
-  "in-person": "Yüz yüze",
+const locationTypeKeys: Record<string, string> = {
+  remote: "agenda.locationRemote",
+  hybrid: "agenda.locationHybrid",
+  "in-person": "agenda.locationInPerson",
 };
 
 export default function AgendaScreen() {
   const { t } = useTranslation();
-  const { session } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const { setVariant } = useHeader();
-  const name = session?.user?.user_metadata?.full_name as string | undefined;
-  const timezone = (session?.user?.user_metadata?.timezone as string) ?? "Europe/Istanbul";
+  const name = user?.user_metadata?.full_name as string | undefined;
+  const timezone = (user?.user_metadata?.timezone as string) ?? "Europe/Istanbul";
   const [selectedDate, setSelectedDate] = useState(() => new Date());
 
   const { dateRange, tzOffsetMs } = useMemo(() => {
@@ -64,11 +65,11 @@ export default function AgendaScreen() {
     return { dateRange: `${toUTCStr(startDate)},${toUTCStr(endDate)}`, tzOffsetMs: offsetMs };
   }, [selectedDate.getFullYear(), selectedDate.getMonth(), timezone]);
 
-  const { data: participations, isLoading: isLoadingParticipations, isRefetching: isRefetchingParticipations, refetch: refetchParticipations } = useEventParticipations({
+  const { data: participations, isLoading: isLoadingParticipations, isRefetching: isRefetchingParticipations, refetch: refetchParticipations, error: pError } = useEventParticipations({
     query: { filters: { state: "confirmed", date__range: dateRange }, prefetch: { event: true } },
   });
 
-  const { data: appointments, isLoading: isLoadingAppointments, isRefetching: isRefetchingAppointments, refetch: refetchAppointments } = useAppointments({
+  const { data: appointments, isLoading: isLoadingAppointments, isRefetching: isRefetchingAppointments, refetch: refetchAppointments, error: aError } = useAppointments({
     query: { filters: { state: "confirmed", date__range: dateRange }, prefetch: { expert: true, session_option: true } },
   });
 
@@ -149,11 +150,11 @@ export default function AgendaScreen() {
       const event = item.data.event;
       if (!event) return { label: "", location: "" };
       return {
-        label: locationTypeLabels[event.type] ?? event.type,
+        label: locationTypeKeys[event.type] ? t(locationTypeKeys[event.type]) : event.type,
         location: event.type !== "remote" ? (event.location ?? "") : "",
       };
     }
-    return { label: "Online", location: "" };
+    return { label: t("agenda.locationRemote"), location: "" };
   };
 
   const handleJoin = async (item: AgendaItem) => {
@@ -163,7 +164,7 @@ export default function AgendaScreen() {
         ? await joinEventParticipation(item.data.id)
         : await joinAppointment(item.data.id);
       console.log("join: credentials received", JSON.stringify(credentials));
-      const userName = session?.user?.user_metadata?.full_name ?? `*****${session?.user?.phone?.slice(-4)}`;
+      const userName = user?.user_metadata?.full_name ?? `*****${user?.phone?.slice(-4)}`;
       router.push({ pathname: "/zoom", params: { token: credentials.token, id: credentials.id, password: credentials.password, userName } });
       console.log("join: zoom meeting started");
     } catch (e) {
@@ -182,8 +183,8 @@ export default function AgendaScreen() {
           locationType: loc.label,
           location: loc.location,
           startDate: new Date(item.data.start_date!),
-          startTime: new Date(item.data.start_date!).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }),
-          endTime: new Date(item.data.end_date!).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }),
+          startTime: new Date(item.data.start_date!).toLocaleTimeString(i18n.language === "tr" ? "tr-TR" : "en-US", { hour: "2-digit", minute: "2-digit", timeZone: timezone }),
+          endTime: new Date(item.data.end_date!).toLocaleTimeString(i18n.language === "tr" ? "tr-TR" : "en-US", { hour: "2-digit", minute: "2-digit", timeZone: timezone }),
           host: {
             name: expert?.title ?? "",
             subtitle: expert?.subtitle ?? null,
@@ -232,6 +233,7 @@ export default function AgendaScreen() {
         </View>
       ) : hasActivities ? (
         <ScrollView
+          key={selectedDate.toDateString()}
           style={styles.content}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#336B57" />}
@@ -247,6 +249,7 @@ export default function AgendaScreen() {
         </ScrollView>
       ) : (
         <ScrollView
+          key={selectedDate.toDateString()}
           style={styles.content}
           contentContainerStyle={styles.emptyScroll}
           showsVerticalScrollIndicator={false}
@@ -264,7 +267,7 @@ export default function AgendaScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#FBFCF4",
   },
   clover: {
     position: "absolute",

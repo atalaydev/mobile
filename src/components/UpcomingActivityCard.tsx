@@ -18,7 +18,7 @@ export type Activity = {
   host: { name: string; subtitle: string | null; avatarUrl: string };
 };
 
-function useCountdown(targetDate: Date) {
+function useCountdown(targetDate: Date, t: (key: string, opts?: Record<string, unknown>) => string) {
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -35,15 +35,19 @@ function useCountdown(targetDate: Date) {
   const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
 
   if (days > 0) {
-    const long = `${days} gün${hours > 0 ? ` ${hours} saat` : ""}`;
-    return { label: `${days}g ${hours}sa`, long, remainingMs: remaining };
+    const long = hours > 0
+      ? t("agenda.countdownDaysHours", { days, hours })
+      : t("agenda.countdownDays", { days });
+    return { label: t("agenda.countdownShortDH", { days, hours }), long, remainingMs: remaining };
   }
   if (hours > 0) {
-    const long = `${hours} saat${minutes > 0 ? ` ${minutes} dakika` : ""}`;
-    return { label: `${hours}sa ${minutes}dk`, long, remainingMs: remaining };
+    const long = minutes > 0
+      ? t("agenda.countdownHoursMinutes", { hours, minutes })
+      : t("agenda.countdownHours", { hours });
+    return { label: t("agenda.countdownShortHM", { hours, minutes }), long, remainingMs: remaining };
   }
-  const long = `${minutes} dakika ${seconds} saniye`;
-  return { label: `${minutes}dk ${seconds}sn`, long, remainingMs: remaining };
+  const long = t("agenda.countdownMinutesSeconds", { minutes, seconds });
+  return { label: t("agenda.countdownShortMS", { minutes, seconds }), long, remainingMs: remaining };
 }
 
 type UpcomingActivityCardProps = {
@@ -54,7 +58,7 @@ type UpcomingActivityCardProps = {
 
 export function UpcomingActivityCard({ activity, variant, onJoin }: UpcomingActivityCardProps) {
   const { t } = useTranslation();
-  const { label: countdown, long: countdownLong, remainingMs } = useCountdown(activity.startDate);
+  const { label: countdown, long: countdownLong, remainingMs } = useCountdown(activity.startDate, t);
   const isNear = remainingMs <= 10 * 60 * 1000;
 
   return (
@@ -62,7 +66,7 @@ export function UpcomingActivityCard({ activity, variant, onJoin }: UpcomingActi
       <View style={styles.imageContainer}>
         <Image source={{ uri: activity.imageUrl }} style={styles.image} contentFit="cover" />
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{variant === "event" ? "Etkinlik" : "Seans"}</Text>
+          <Text style={styles.badgeText}>{variant === "event" ? t("agenda.event") : t("agenda.appointment")}</Text>
         </View>
       </View>
 
@@ -96,7 +100,7 @@ export function UpcomingActivityCard({ activity, variant, onJoin }: UpcomingActi
 
         <Pressable style={[styles.button, !isNear && styles.buttonDisabled]} onPress={onJoin} disabled={!isNear}>
           <Text style={styles.buttonText}>
-            {isNear ? "Katıl" : `${countdownLong} sonra başlıyor..`}
+            {isNear ? t("agenda.join") : t("agenda.startsIn", { time: countdownLong })}
           </Text>
         </Pressable>
       </View>

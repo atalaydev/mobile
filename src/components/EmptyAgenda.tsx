@@ -1,5 +1,6 @@
 import { Text } from "@/components/Text";
-import { Pressable, StyleSheet, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { Pressable, StyleSheet } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 
 type EmptyAgendaProps = {
@@ -7,13 +8,14 @@ type EmptyAgendaProps = {
 };
 
 export function EmptyAgenda({ onExplore }: EmptyAgendaProps) {
+  const { t } = useTranslation();
   return (
     <Animated.View entering={FadeInUp.duration(400)} style={styles.container}>
       <Text style={styles.message}>
-        Bugün hiç oturumunuz yok, size en uygun etkinlikleri ve seansları keşfedin.
+        {t("agenda.emptyMessage")}
       </Text>
       <Pressable style={styles.button} onPress={onExplore}>
-        <Text style={styles.buttonText}>Keşfet</Text>
+        <Text style={styles.buttonText}>{t("agenda.explore")}</Text>
       </Pressable>
     </Animated.View>
   );

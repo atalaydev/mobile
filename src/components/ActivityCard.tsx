@@ -1,4 +1,6 @@
 import { Text } from "@/components/Text";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 
 type ActivityCardProps = {
@@ -11,10 +13,12 @@ type ActivityCardProps = {
 function formatDate(dateStr: string, timeZone: string) {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone });
+  const locale = i18n.language === "tr" ? "tr-TR" : "en-US";
+  return date.toLocaleDateString(locale, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone });
 }
 
 export function ActivityCard({ title, startDate, timezone, onPress }: ActivityCardProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.card}>
       <View style={styles.top}>
@@ -23,7 +27,7 @@ export function ActivityCard({ title, startDate, timezone, onPress }: ActivityCa
       <View style={styles.bottom}>
         <Text style={styles.dateText}>{formatDate(startDate, timezone)}</Text>
         <Pressable style={styles.button} onPress={onPress}>
-          <Text style={styles.buttonText}>Detaylı İncele</Text>
+          <Text style={styles.buttonText}>{t("agenda.viewDetails")}</Text>
         </Pressable>
       </View>
     </View>

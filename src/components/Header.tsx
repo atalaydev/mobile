@@ -1,10 +1,13 @@
 import { useHeader } from "@/contexts/HeaderContext";
+import { supabase } from "@/lib/supabase";
 import { Image } from "expo-image";
-import { SymbolView } from "expo-symbols";
+import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
-import { useEffect } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming, interpolateColor } from "react-native-reanimated";
+import { SymbolView } from "expo-symbols";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Alert, AppState, Linking, Pressable, StyleSheet, View } from "react-native";
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView);
@@ -17,13 +20,46 @@ const VARIANTS = {
 export function Header() {
   const { variant } = useHeader();
   const router = useRouter();
+  const { t } = useTranslation();
   const v = VARIANTS[variant];
+  const [notifGranted, setNotifGranted] = useState(true);
 
   const progress = useSharedValue(0);
 
   useEffect(() => {
     progress.value = withTiming(variant === "primary" ? 0 : 1, { duration: 200 });
   }, [variant]);
+
+  const wasGranted = useRef(notifGranted);
+
+  useEffect(() => {
+    const check = async () => {
+      const { status } = await Notifications.getPermissionsAsync();
+      const granted = status === "granted";
+      
+      setNotifGranted(granted);
+
+      if (granted && !wasGranted.current) {
+        try {
+          const token = await Notifications.getExpoPushTokenAsync();
+
+          await supabase.auth.updateUser({ data: { nid: token.data } });
+        } catch (e) {
+          console.warn("couldn't handle push token:", e);
+        }
+      }
+
+      wasGranted.current = granted;
+    };
+
+    check();
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") check();
+    });
+
+    return () => sub.remove();
+  }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
@@ -41,8 +77,25 @@ export function Header() {
           style={styles.logo}
           contentFit="contain"
         />
-        <Pressable style={styles.notificationButton} onPress={() => router.push("/notifications")}>
+        <Pressable
+          style={styles.notificationButton}
+          onPress={() => {
+            if (!notifGranted) {
+              Alert.alert(
+                t("notifications.disabledTitle"),
+                t("notifications.disabledMessage"),
+                [
+                  { text: t("notifications.cancel"), style: "cancel" },
+                  { text: t("notifications.settings"), onPress: () => Linking.openSettings() },
+                ],
+              );
+              return;
+            }
+            router.push("/notifications");
+          }}
+        >
           <SymbolView name="bell" size={20} tintColor="#336B57" />
+          {!notifGranted && <View style={styles.notifDot} />}
         </Pressable>
       </View>
     </AnimatedSafeAreaView>
@@ -79,5 +132,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#FCFCFC",
     alignItems: "center",
     justifyContent: "center",
+  },
+  notifDot: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#E53935",
   },
 });

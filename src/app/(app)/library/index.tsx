@@ -72,7 +72,7 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#FBFCF4",
   },
   bgContainer: {
     position: "absolute",

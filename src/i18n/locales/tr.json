@@ -30,10 +30,33 @@
     "library": "Kütüphane",
     "profile": "Profil"
   },
+  "explore": {
+    "comingSoon": "Çok Yakında",
+    "description": "Güzel şeyler hazırlıyoruz! Etkinlikler, seanslar ve sana özel içerikler çok yakında burada seni bekliyor olacak.",
+    "visit": "Ziyaret Et"
+  },
   "agenda": {
     "greeting": "Merhaba",
     "name": "{{name}}",
-    "expert": "Eğitmen"
+    "expert": "Eğitmen",
+    "emptyMessage": "Bugün takvimin boş görünüyor! Sana en uygun etkinlikleri ve seansları keşfetmeye ne dersin?",
+    "explore": "Keşfet",
+    "event": "Etkinlik",
+    "appointment": "Seans",
+    "join": "Katıl",
+    "startsIn": "{{time}} sonra başlıyor..",
+    "viewDetails": "Detaylı İncele",
+    "locationRemote": "Online",
+    "locationHybrid": "Hibrit",
+    "locationInPerson": "Yüz yüze",
+    "countdownDaysHours": "{{days}} gün {{hours}} saat",
+    "countdownDays": "{{days}} gün",
+    "countdownHoursMinutes": "{{hours}} saat {{minutes}} dakika",
+    "countdownHours": "{{hours}} saat",
+    "countdownMinutesSeconds": "{{minutes}} dakika {{seconds}} saniye",
+    "countdownShortDH": "{{days}}g {{hours}}sa",
+    "countdownShortHM": "{{hours}}sa {{minutes}}dk",
+    "countdownShortMS": "{{minutes}}dk {{seconds}}sn"
   },
   "profile": {
     "title": "Profile",
@@ -48,6 +71,22 @@
   },
   "support": {
     "title": "Destek"
+  },
+  "notifications": {
+    "disabledTitle": "Bildirimler Kapalı",
+    "disabledMessage": "Bildirimleri alabilmek için ayarlardan izin verin.",
+    "cancel": "Vazgeç",
+    "settings": "Ayarlar"
+  },
+  "zoom": {
+    "permissionWarning": "Kamera ve mikrofon izni verilmedi. İzin vermeden de katılabilirsiniz ancak sesiniz ve görüntünüz kapalı olacaktır.",
+    "continueAnyway": "Yine de Devam Et",
+    "managePermissions": "İzinleri Yönet",
+    "checkingPermissions": "İzinler kontrol ediliyor...",
+    "preparing": "Hazırlanıyor...",
+    "connecting": "Bağlanılıyor...",
+    "joinFailed": "Toplantıya katılınamadı.",
+    "goBack": "Geri Dön"
   },
   "common": {
     "error": "Hata",

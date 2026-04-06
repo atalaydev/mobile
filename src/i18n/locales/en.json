@@ -30,10 +30,33 @@
     "library": "Library",
     "profile": "Profile"
   },
+  "explore": {
+    "comingSoon": "Coming Soon",
+    "description": "We're preparing something lovely! Events, sessions and content just for you will be waiting here very soon.",
+    "visit": "Visit"
+  },
   "agenda": {
     "greeting": "Hello",
     "name": "{{name}}",
-    "expert": "Instructor"
+    "expert": "Instructor",
+    "emptyMessage": "Your schedule looks empty today! How about discovering the best events and sessions for you?",
+    "explore": "Explore",
+    "event": "Event",
+    "appointment": "Session",
+    "join": "Join",
+    "startsIn": "Starts in {{time}}..",
+    "viewDetails": "View Details",
+    "locationRemote": "Online",
+    "locationHybrid": "Hybrid",
+    "locationInPerson": "In Person",
+    "countdownDaysHours": "{{days}} days {{hours}} hours",
+    "countdownDays": "{{days}} days",
+    "countdownHoursMinutes": "{{hours}} hours {{minutes}} minutes",
+    "countdownHours": "{{hours}} hours",
+    "countdownMinutesSeconds": "{{minutes}} minutes {{seconds}} seconds",
+    "countdownShortDH": "{{days}}d {{hours}}h",
+    "countdownShortHM": "{{hours}}h {{minutes}}m",
+    "countdownShortMS": "{{minutes}}m {{seconds}}s"
   },
   "profile": {
     "title": "Profile",
@@ -48,6 +71,22 @@
   },
   "support": {
     "title": "Support"
+  },
+  "notifications": {
+    "disabledTitle": "Notifications Disabled",
+    "disabledMessage": "Please enable notifications in settings.",
+    "cancel": "Cancel",
+    "settings": "Settings"
+  },
+  "zoom": {
+    "permissionWarning": "Camera and microphone permissions were not granted. You can still join but your camera and microphone will be off.",
+    "continueAnyway": "Continue Anyway",
+    "managePermissions": "Manage Permissions",
+    "checkingPermissions": "Checking permissions...",
+    "preparing": "Preparing...",
+    "connecting": "Connecting...",
+    "joinFailed": "Could not join the meeting.",
+    "goBack": "Go Back"
   },
   "common": {
     "error": "Error",

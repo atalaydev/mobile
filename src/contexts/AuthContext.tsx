@@ -1,11 +1,10 @@
 import { supabase } from "@/lib/supabase";
-import type { Session } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { getLocales } from "expo-localization";
-import i18n from "i18next";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 type AuthContextType = {
-  session: Session | null;
+  user: User | null;
   isLoggedIn: boolean;
   isLoading: boolean;
   sendOtp: (phone: string, options?: { shouldCreateUser?: boolean }) => Promise<void>;
@@ -16,25 +15,20 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
       setIsLoading(false);
     });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      const userLang = session?.user?.user_metadata?.language;
-      if (userLang) {
-        const lang = userLang.startsWith("tr") ? "tr" : "en";
-        if (i18n.language !== lang) i18n.changeLanguage(lang);
-      }
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
     });
 
-    return () => data.subscription.unsubscribe();
+    return () => subscription.subscription.unsubscribe();
   }, []);
 
   const sendOtp = async (phone: string, options?: { shouldCreateUser?: boolean }) => {
@@ -68,8 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        session,
-        isLoggedIn: session != null,
+        user,
+        isLoggedIn: user != null,
         isLoading,
         sendOtp,
         verifyOtp,

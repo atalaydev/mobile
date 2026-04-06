@@ -2,6 +2,7 @@ import { SplashOverlay } from "@/components/SplashOverlay";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import "@/i18n";
 import { client } from "@/lib/client";
+import { supabase } from "@/lib/supabase";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -10,8 +11,8 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments } from "expo-router";
 import * as Notifications from "expo-notifications";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -39,13 +40,17 @@ function AuthGate() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
+    
     Notifications.requestPermissionsAsync().then(async ({ status }) => {
       if (status !== "granted") return;
       try {
         const token = await Notifications.getExpoPushTokenAsync();
-        console.log("expo push token:", token.data);
+
+        await supabase.auth.updateUser({
+          data: { nid: token.data },
+        });
       } catch (e) {
-        console.warn("push token alınamadı:", e);
+        console.warn("couldn't handle push token:", e);
       }
     });
   }, [isLoggedIn]);
