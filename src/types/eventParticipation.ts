@@ -5,6 +5,9 @@ export interface EventParticipation {
   event_id: string;
   start_date: string;
   end_date: string;
+  state: string;
+  recording_available_until?: string;
+  location_type?: string;
 
   /** Populated via prefetch using event_id. Only available when prefetch.event is enabled. */
   event?: Event;
