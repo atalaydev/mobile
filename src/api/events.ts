@@ -16,6 +16,11 @@ const eventPrefetcher = Prefetcher<Event>({
   },
 });
 
+export const getEvent = async (id: string): Promise<Event> => {
+  const { data } = await axios.get<Event>(`/1/events/${id}/`);
+  return data;
+};
+
 export const getEvents = async (options?: Options): Promise<Response<Event>> => {
   const { data } = await axios.get<Response<Event>>("/1/events/", {
     params: {

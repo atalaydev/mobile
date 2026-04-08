@@ -9,4 +9,8 @@ export const keys = {
     all: ["appointments"] as const,
     list: (options?: Options) => ["appointments", "list", options] as const,
   },
+  library: {
+    all: ["library"] as const,
+    list: (options?: Options) => ["library", "list", options] as const,
+  },
 };

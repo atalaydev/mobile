@@ -33,10 +33,10 @@ function AuthGate() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if ((fontsLoaded || fontError) && !isLoading) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, isLoading]);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -78,7 +78,7 @@ function AuthGate() {
           <Stack.Screen name="(app)" />
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="support" />
-          <Stack.Screen name="notifications" options={{ presentation: "formSheet", headerShown: true, headerTitle: "Bildirimler" }} />
+<Stack.Screen name="notifications" options={{ presentation: "formSheet", headerShown: true, headerTitle: "Bildirimler" }} />
           <Stack.Screen name="zoom" options={{ presentation: "fullScreenModal", headerShown: false }} />
         </Stack>
       </View>
