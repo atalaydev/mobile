@@ -2,6 +2,7 @@ import { getEventParticipations } from "@/api/event-participations";
 import { Text } from "@/components/Text";
 import { colors } from "@/constants/colors";
 import { useEvent } from "@/hooks/queries/useEvent";
+import { Category } from "@/types/category";
 import { EventParticipation } from "@/types/eventParticipation";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -9,7 +10,7 @@ import { SymbolView } from "expo-symbols";
 import i18n from "i18next";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -31,6 +32,7 @@ export default function EventDetailScreen() {
   });
 
   const expert = event && typeof event.expert === "object" ? event.expert : null;
+  const categories = (event?.categories ?? []).filter((c): c is Category => typeof c === "object").sort((a, b) => Number(a.sub) - Number(b.sub) || a.name.localeCompare(b.name));
   const locale = i18n.language === "tr" ? "tr-TR" : "en-US";
 
   const { next, past, planned, sessionNumbers } = useMemo(() => {
@@ -65,6 +67,39 @@ export default function EventDetailScreen() {
     return new Date(dateStr).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
+  const getRecordingDeadline = (p: EventParticipation) => {
+    if (!p.recordings_access_duration) return null;
+    const deadline = new Date(p.start_date);
+    deadline.setDate(deadline.getDate() + p.recordings_access_duration);
+    return deadline;
+  };
+
+  const openRecording = (participationId: string, recordingId: string) => {
+    router.push({ pathname: "/library/watch", params: { participationId, recordingId } });
+  };
+
+  const handleWatchRecording = (p: EventParticipation) => {
+    const recordings = p.recordings ?? [];
+    if (recordings.length === 0) return;
+
+    if (recordings.length === 1) {
+      openRecording(p.id, recordings[0]);
+      return;
+    }
+
+    Alert.alert(
+      "",
+      undefined,
+      [
+        ...recordings.map((recordingId, i) => ({
+          text: t("library.recordingPart", { current: i + 1 }),
+          onPress: () => openRecording(p.id, recordingId),
+        })),
+        { text: t("notifications.cancel"), style: "cancel" as const },
+      ],
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.handle}>
@@ -97,24 +132,47 @@ export default function EventDetailScreen() {
                   <Text style={styles.description}>{event.summary}</Text>
                 )}
 
-                <View style={styles.infoRow}>
-                  <View style={styles.infoIcon}><SymbolView name="square.grid.2x2" size={20} tintColor={colors.primary} /></View>
-                  <View style={styles.chipList}>
-                    <View style={styles.infoChip}>
-                      <Text style={styles.infoChipText}>Yoga</Text>
-                    </View>
-                    <Text style={styles.infoDivider}>|</Text>
-                    <Text style={styles.infoMuted}>Power Yoga</Text>
-                    <Text style={styles.infoDivider}>|</Text>
-                    <Text style={styles.infoMuted}>Başlangıç Seviyesi</Text>
+                {categories.length > 0 && (
+                  <View style={[styles.infoRow, { alignItems: "center" }]}>
+                    <View style={styles.infoIcon}><SymbolView name="square.grid.2x2" size={20} tintColor={colors.primary} /></View>
+                    <FlatList
+                      data={categories}
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.chipList}
+                      keyExtractor={(cat) => cat.id}
+                      renderItem={({ item: cat, index: i }) => (
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                          {i > 0 && <Text style={styles.infoDivider}>|</Text>}
+                          {cat.sub ? (
+                            <Text style={styles.infoMuted}>{cat.name}</Text>
+                          ) : (
+                            <View style={styles.infoChip}>
+                              <Text style={styles.infoChipText}>{cat.name}</Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    />
                   </View>
-                </View>
+                )}
+
+                {event?.activity_level != null && (
+                  <View style={[styles.infoRow, { alignItems: "center" }]}>
+                    <View style={styles.infoIcon}><SymbolView name="chart.bar" size={20} tintColor={colors.primary} /></View>
+                    <Text style={styles.infoTitle}>
+                      {{ 1: t("event.activityLevelAll"), 2: t("event.activityLevelBeginner"), 3: t("event.activityLevelIntermediate"), 4: t("event.activityLevelAdvanced") }[event.activity_level] ?? t("event.activityLevelAll")}
+                    </Text>
+                  </View>
+                )}
 
                 <View style={styles.infoRow}>
-                  <View style={styles.infoIcon}><SymbolView name="mappin.circle" size={20} tintColor={colors.primary} /></View>
+                  <View style={styles.infoIcon}><SymbolView name="mappin.and.ellipse" size={20} tintColor={colors.primary} /></View>
                   <View style={styles.infoContent}>
-                    <Text style={styles.infoTitle}>Fiziksel Etkinlik</Text>
-                    <Text style={styles.infoValue}>Lorem Ipsum Sokak, Lorem Caddesi No:24 IST/Beykoz</Text>
+                    <Text style={styles.infoTitle}>{t("event.location")}</Text>
+                    <Text style={styles.infoValue}>
+                      {event?.type === "remote" ? t("event.locationRemote") : event?.type === "hybrid" ? t("event.locationHybrid") : t("event.locationInPerson")}
+                    </Text>
                   </View>
                 </View>
 
@@ -161,25 +219,33 @@ export default function EventDetailScreen() {
                     <Text style={styles.sessionBadgeText}>{t("library.currentSession", { current: sessionNumbers.get(next.id) })}</Text>
                   </View>
                   <Text style={styles.sessionDate}>{formatSessionDate(next.start_date)}</Text>
-                  <Text style={styles.sessionTitle}>{event?.title}</Text>
+                  <Text style={styles.sessionTitle}>{next.event_session_title || event?.title}</Text>
                   <View style={styles.sessionLocationRow}>
-                    <SymbolView name="mappin.circle" size={14} tintColor={colors.primary} />
+                    <SymbolView name="mappin.and.ellipse" size={14} tintColor={colors.primary} />
                     <Text style={styles.sessionLocation}>{t("library.online")}</Text>
                   </View>
-                  {next.recording_available_until && (
-                    <View style={styles.recordingInfo}>
-                      <SymbolView name="info.circle" size={14} tintColor={colors.primary} />
-                      <Text style={styles.recordingText}>
-                        {t("library.recordingAvailable", { date: formatSessionDate(next.recording_available_until) })}
-                      </Text>
-                    </View>
-                  )}
+                  {(() => {
+                    const deadline = getRecordingDeadline(next);
+                    if (deadline) {
+                      return (
+                        <View style={styles.recordingInfo}>
+                          <SymbolView name="info.circle" size={14} tintColor={colors.primary} style={{ marginTop: 2 }} />
+                          <Text style={styles.recordingText}>
+                            {t("library.recordingAvailableBefore")}<Text style={styles.recordingBold}>{formatSessionDate(deadline.toISOString())}</Text>{t("library.recordingAvailableAfter")}
+                          </Text>
+                        </View>
+                      );
+                    }
+                    return null;
+                  })()}
                   <Pressable style={styles.sessionButton}>
                     <Text style={styles.sessionButtonText}>{t("library.joinLive")}</Text>
                   </Pressable>
                 </View>
               </View>
             )}
+
+            <Text style={styles.sectionTitle}>{t("library.sessionsTitle")}</Text>
 
             <View style={styles.sessionTabs}>
               <Pressable
@@ -200,27 +266,47 @@ export default function EventDetailScreen() {
               </Pressable>
             </View>
 
+            {sessionTab === "planned" && planned.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <SymbolView name="calendar.badge.clock" size={36} tintColor="#C1D5CE" />
+                <Text style={styles.emptyText}>{t("library.emptyPlanned")}</Text>
+              </View>
+            )}
+
             {sessionTab === "planned" && planned.map((p) => (
               <View key={p.id} style={styles.sessionCard}>
                 <View style={styles.sessionBadge}>
                   <Text style={styles.sessionBadgeText}>{t("library.currentSession", { current: sessionNumbers.get(p.id) })}</Text>
                 </View>
                 <Text style={styles.sessionDate}>{formatSessionDate(p.start_date)}</Text>
-                <Text style={styles.sessionTitle}>{event?.title}</Text>
+                <Text style={styles.sessionTitle}>{p.event_session_title || event?.title}</Text>
                 <View style={styles.sessionLocationRow}>
-                  <SymbolView name="mappin.circle" size={14} tintColor={colors.primary} />
+                  <SymbolView name="mappin.and.ellipse" size={14} tintColor={colors.primary} />
                   <Text style={styles.sessionLocation}>{t("library.online")}</Text>
                 </View>
-                {p.recording_available_until && (
-                  <View style={styles.recordingInfo}>
-                    <SymbolView name="info.circle" size={14} tintColor={colors.primary} />
-                    <Text style={styles.recordingText}>
-                      {t("library.recordingAvailable", { date: formatSessionDate(p.recording_available_until) })}
-                    </Text>
-                  </View>
-                )}
+                {(() => {
+                  const deadline = getRecordingDeadline(p);
+                  if (deadline) {
+                    return (
+                      <View style={styles.recordingInfo}>
+                        <SymbolView name="info.circle" size={14} tintColor={colors.primary} style={{ marginTop: 2 }} />
+                        <Text style={styles.recordingText}>
+                          {t("library.recordingAvailableBefore")}<Text style={styles.recordingBold}>{formatSessionDate(deadline.toISOString())}</Text>{t("library.recordingAvailableAfter")}
+                        </Text>
+                      </View>
+                    );
+                  }
+                  return null;
+                })()}
               </View>
             ))}
+
+            {sessionTab === "past" && past.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <SymbolView name="clock.arrow.circlepath" size={36} tintColor="#C1D5CE" />
+                <Text style={styles.emptyText}>{t("library.emptyPast")}</Text>
+              </View>
+            )}
 
             {sessionTab === "past" && past.map((p) => (
               <View key={p.id} style={styles.sessionCard}>
@@ -228,22 +314,34 @@ export default function EventDetailScreen() {
                   <Text style={styles.sessionBadgeText}>{t("library.currentSession", { current: sessionNumbers.get(p.id) })}</Text>
                 </View>
                 <Text style={styles.sessionDate}>{formatSessionDate(p.start_date)}</Text>
-                <Text style={styles.sessionTitle}>{event?.title}</Text>
+                <Text style={styles.sessionTitle}>{p.event_session_title || event?.title}</Text>
                 <View style={styles.sessionLocationRow}>
-                  <SymbolView name="mappin.circle" size={14} tintColor={colors.primary} />
+                  <SymbolView name="mappin.and.ellipse" size={14} tintColor={colors.primary} />
                   <Text style={styles.sessionLocation}>{t("library.online")}</Text>
                 </View>
-                {p.recording_available_until && (
-                  <View style={styles.recordingInfo}>
-                    <SymbolView name="info.circle" size={14} tintColor={colors.primary} />
-                    <Text style={styles.recordingText}>
-                      {t("library.recordingAvailable", { date: formatSessionDate(p.recording_available_until) })}
-                    </Text>
-                  </View>
-                )}
-                <Pressable style={styles.sessionButton}>
-                  <Text style={styles.sessionButtonText}>{t("library.watchRecording")}</Text>
-                </Pressable>
+                {(() => {
+                  const deadline = getRecordingDeadline(p);
+                  if (!deadline) return null;
+                  return (
+                    <>
+                      <View style={styles.recordingInfo}>
+                        <SymbolView name="info.circle" size={14} tintColor={colors.primary} style={{ marginTop: 2 }} />
+                        <Text style={styles.recordingText}>
+                          {t("library.recordingAvailableBefore")}<Text style={styles.recordingBold}>{formatSessionDate(deadline.toISOString())}</Text>{t("library.recordingAvailableAfter")}
+                        </Text>
+                      </View>
+                      {(p.recordings?.length ?? 0) > 0 && (
+                        <Pressable
+                          style={[styles.sessionButton, !p.recordings_watchable && styles.sessionButtonDisabled]}
+                          onPress={() => handleWatchRecording(p)}
+                          disabled={!p.recordings_watchable}
+                        >
+                          <Text style={styles.sessionButtonText}>{t("library.watchRecording")}</Text>
+                        </Pressable>
+                      )}
+                    </>
+                  );
+                })()}
               </View>
             ))}
           </View>
@@ -362,7 +460,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 6,
-    backgroundColor: "#F1F4EC",
+    backgroundColor: "#FBFCF4",
+    borderWidth: 1,
+    borderColor: "#E2EBB7",
     borderRadius: 12,
     padding: 10,
   },
@@ -370,8 +470,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
-    color: "#5E5F5E",
+    color: "#336B57",
     lineHeight: 18,
+  },
+  recordingBold: {
+    fontFamily: "Inter_700Bold",
+    color: "#336B57",
   },
   sessionTabs: {
     flexDirection: "row",
@@ -406,6 +510,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
   },
+  sessionButtonDisabled: {
+    opacity: 0.4,
+  },
   sessionButtonText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
@@ -428,7 +535,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    flexWrap: "wrap",
   },
   infoChip: {
     backgroundColor: "#C1D5CE",
@@ -463,6 +569,21 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 2,
   },
+  emptyContainer: {
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 32,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#E8EBEA",
+    borderStyle: "dashed",
+  },
+  emptyText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+    color: "#5E5F5E",
+  },
   title: {
     fontFamily: "Inter_700Bold",
     fontSize: 22,
@@ -489,7 +610,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#212529",
     lineHeight: 22,
-    textAlign: "justify",
   },
   expertRow: {
     flexDirection: "row",

@@ -6,6 +6,7 @@ export default function LibraryLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="event/[id]/[paymentId]" options={{ presentation: "formSheet" }} />
       <Stack.Screen name="session/[id]/[paymentId]" options={{ presentation: "formSheet" }} />
+      <Stack.Screen name="watch" options={{ presentation: "fullScreenModal", headerShown: false }} />
     </Stack>
   );
 }

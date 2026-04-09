@@ -70,7 +70,7 @@ export function Header() {
   }));
 
   return (
-    <AnimatedSafeAreaView edges={["top"]} style={[styles.container, animatedStyle, v.shadow && styles.shadow]}>
+    <AnimatedSafeAreaView edges={["top"]} style={[styles.container, animatedStyle, v.shadow && styles.shadow, v.shadow && styles.border]}>
       <View style={styles.row}>
         <Image
           source={require("@/assets/images/logo-icon.svg")}
@@ -110,10 +110,14 @@ const styles = StyleSheet.create({
   },
   shadow: {
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  border: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E4D9",
   },
   row: {
     flexDirection: "row",

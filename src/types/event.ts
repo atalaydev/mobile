@@ -1,3 +1,4 @@
+import type { Category } from "./category";
 import type { Expert } from "./expert";
 
 export interface Event {
@@ -10,4 +11,6 @@ export interface Event {
   location?: string;
   next_session_date?: string;
   expert: string | Expert;
+  categories: string[] | Category[];
+  activity_level?: number;
 }

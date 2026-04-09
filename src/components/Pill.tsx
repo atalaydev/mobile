@@ -1,14 +1,14 @@
 import { Text } from "@/components/Text";
 import { StyleSheet, View } from "react-native";
 
-type ChipProps = {
+type PillProps = {
   label: string;
   variant?: "outline" | "filled";
 };
 
-export function Chip({ label, variant = "filled" }: ChipProps) {
+export function Pill({ label, variant = "filled" }: PillProps) {
   return (
-    <View style={[styles.chip, variant === "outline" ? styles.outline : styles.filled]}>
+    <View style={[styles.pill, variant === "outline" ? styles.outline : styles.filled]}>
       <Text style={[styles.text, variant === "outline" ? styles.outlineText : styles.filledText]}>
         {label}
       </Text>
@@ -17,7 +17,7 @@ export function Chip({ label, variant = "filled" }: ChipProps) {
 }
 
 const styles = StyleSheet.create({
-  chip: {
+  pill: {
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 6,

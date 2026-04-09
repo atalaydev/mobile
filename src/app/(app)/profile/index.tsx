@@ -50,6 +50,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
+    backgroundColor: "#F1F4EC",
   },
   title: {
     fontSize: 24,

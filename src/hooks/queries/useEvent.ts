@@ -1,3 +1,4 @@
+import { getCategories } from "@/api/categories";
 import { getEvent } from "@/api/events";
 import { getExperts } from "@/api/experts";
 import { Event } from "@/types/event";
@@ -14,6 +15,12 @@ export function useEvent(id: string) {
         if (results.length > 0) {
           event.expert = results[0];
         }
+      }
+
+      const categoryIds = event.categories as string[];
+      if (categoryIds?.length > 0) {
+        const { results } = await getCategories({ filters: { id__in: categoryIds.join(",") }, limit: categoryIds.length });
+        event.categories = results;
       }
 
       return event;

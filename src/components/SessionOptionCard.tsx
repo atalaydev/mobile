@@ -1,4 +1,4 @@
-import { Chip } from "@/components/Chip";
+import { Pill } from "@/components/Pill";
 import { Text } from "@/components/Text";
 import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
@@ -41,9 +41,9 @@ export function SessionOptionCard({ title, imageUrl, locationType, sessionCount,
         </View>
 
         <View style={styles.chipRow}>
-          <Chip label={locationType} />
+          <Pill label={locationType} />
           {sessionCount != null && (
-            <Chip label={t("library.sessionCount", { count: sessionCount })} />
+            <Pill label={t("library.sessionCount", { count: sessionCount })} />
           )}
         </View>
 

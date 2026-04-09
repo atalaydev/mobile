@@ -17,9 +17,9 @@ import { useTranslation } from "react-i18next";
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 
 const locationTypeKeys: Record<string, string> = {
-  remote: "agenda.locationRemote",
-  hybrid: "agenda.locationHybrid",
-  "in-person": "agenda.locationInPerson",
+  remote: "event.locationRemote",
+  hybrid: "event.locationHybrid",
+  "in-person": "event.locationInPerson",
 };
 
 export default function AgendaScreen() {
@@ -154,7 +154,7 @@ export default function AgendaScreen() {
         location: event.type !== "remote" ? (event.location ?? "") : "",
       };
     }
-    return { label: t("agenda.locationRemote"), location: "" };
+    return { label: t("event.locationRemote"), location: "" };
   };
 
   const handleJoin = async (item: AgendaItem) => {

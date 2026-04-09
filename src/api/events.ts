@@ -1,3 +1,4 @@
+import { getCategories } from "@/api/categories";
 import { getExperts } from "@/api/experts";
 import { Prefetcher } from "@/api/prefetch";
 import { Options, Response } from "@/api/types";
@@ -13,6 +14,16 @@ const eventPrefetcher = Prefetcher<Event>({
       return Object.fromEntries(results.map((e) => [e.slug, e]));
     },
     target: "expert",
+  },
+  categories: {
+    extractor: (object) => object.categories as string[],
+    resolver: async (ids) => {
+      const { results } = await getCategories({ filters: { id__in: ids.join(",") }, limit: ids.length });
+
+      return Object.fromEntries(results.map((c) => [c.id, c]));
+    },
+    target: "categories",
+    many: true,
   },
 });
 
