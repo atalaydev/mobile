@@ -79,6 +79,7 @@
     "currentSession": "Session {{current}}",
     "sessionsTitle": "Sessions",
     "recordingPart": "Part {{current}}",
+    "documents": "Documents",
     "emptyPlanned": "No planned sessions.",
     "emptyPast": "No past sessions.",
     "review": "Review",

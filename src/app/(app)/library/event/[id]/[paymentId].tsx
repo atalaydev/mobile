@@ -1,16 +1,19 @@
-import { getEventParticipations } from "@/api/event-participations";
+import { getDocumentUrl, getEventParticipations, getRecordingUrl, joinEventParticipation } from "@/api/event-participations";
+import { useAuth } from "@/contexts/AuthContext";
 import { Text } from "@/components/Text";
 import { colors } from "@/constants/colors";
+import { useCountdown } from "@/hooks/useCountdown";
 import { useEvent } from "@/hooks/queries/useEvent";
 import { Category } from "@/types/category";
-import { EventParticipation } from "@/types/eventParticipation";
+import { Document, EventParticipation } from "@/types/eventParticipation";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import i18n from "i18next";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -18,11 +21,23 @@ export default function EventDetailScreen() {
   const { id, paymentId } = useLocalSearchParams<{ id: string; paymentId: string }>();
   const { t } = useTranslation();
   const router = useRouter();
+  const { user } = useAuth();
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [sessionTab, setSessionTab] = useState<"planned" | "past">("planned");
+  const [docsVisible, setDocsVisible] = useState(false);
+  const [docLoading, setDocLoading] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [watchingId, setWatchingId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const { data: event, isLoading } = useEvent(id);
-  const { data: participations } = useQuery<EventParticipation[]>({
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchEvent(), refetchParticipations()]);
+    setRefreshing(false);
+  };
+
+  const { data: event, isLoading, refetch: refetchEvent } = useEvent(id);
+  const { data: participations, refetch: refetchParticipations } = useQuery<EventParticipation[]>({
     queryKey: ["event-participations", paymentId],
     queryFn: async () => {
       const res = await getEventParticipations({ filters: { payment: paymentId }, limit: 100, sort: "-start_date" });
@@ -63,6 +78,11 @@ export default function EventDetailScreen() {
     return { next: nextSession, past: pastSessions.reverse(), planned: plannedSessions, sessionNumbers };
   }, [participations]);
 
+  const nextStartDate = next ? new Date(next.start_date) : new Date(0);
+  const { long: countdownText, remainingMs } = useCountdown(nextStartDate, t);
+  const TEN_MINUTES = 10 * 60 * 1000;
+  const canJoin = remainingMs <= TEN_MINUTES;
+
   const formatSessionDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
   };
@@ -74,8 +94,29 @@ export default function EventDetailScreen() {
     return deadline;
   };
 
-  const openRecording = (participationId: string, recordingId: string) => {
-    router.push({ pathname: "/library/watch", params: { participationId, recordingId } });
+  const openRecording = async (participationId: string, recordingId: string) => {
+    setWatchingId(participationId);
+    try {
+      const uri = await getRecordingUrl(participationId, recordingId);
+      router.push({ pathname: "/watch", params: { uri } });
+    } catch (err) {
+      console.error("[Watch] error:", err);
+    } finally {
+      setWatchingId(null);
+    }
+  };
+
+  const handleJoin = async (participationId: string) => {
+    setJoining(true);
+    try {
+      const credentials = await joinEventParticipation(participationId);
+      const userName = user?.user_metadata?.full_name ?? `*****${user?.phone?.slice(-4)}`;
+      router.push({ pathname: "/zoom", params: { token: credentials.token, id: credentials.id, password: credentials.password, userName } });
+    } catch (e) {
+      console.error("join failed:", e);
+    } finally {
+      setJoining(false);
+    }
   };
 
   const handleWatchRecording = (p: EventParticipation) => {
@@ -100,20 +141,62 @@ export default function EventDetailScreen() {
     );
   };
 
+  const handleOpenDoc = async (doc: Document) => {
+    const pid = participations?.[0]?.id;
+    if (!pid) return;
+
+    setDocsVisible(false);
+    setDocLoading(true);
+
+    try {
+      const url = await getDocumentUrl(pid, doc.key, doc.type === "video");
+      if (doc.type === "video") {
+        router.push({ pathname: "/watch", params: { uri: url } });
+      } else {
+        Linking.openURL(url);
+      }
+    } catch (err) {
+      console.error("[Document] error:", err);
+    } finally {
+      setDocLoading(false);
+    }
+  };
+
+  const renderDocs = (docs: Document[]) => (
+    <View style={styles.docsContainer}>
+      {docs.map((doc, i) => (
+        <View key={`${doc.type}-${doc.key}`}>
+          {i > 0 && <View style={styles.docDivider} />}
+          <Pressable style={styles.docRow} onPress={() => handleOpenDoc(doc)}>
+            <SymbolView name={doc.type === "video" ? "play.circle" : "doc.text"} size={18} tintColor={colors.primary} />
+            <Text style={styles.docName} numberOfLines={1}>{doc.name}</Text>
+          </Pressable>
+        </View>
+      ))}
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
-      <View style={styles.handle}>
-        <View style={styles.handleBar} />
-      </View>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      {docLoading && (
+        <View style={styles.docLoadingOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      )}
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       ) : (
-        <ScrollView style={styles.scroll}>
+        <ScrollView style={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
           {event?.banner && (
-            <Image source={{ uri: event.banner }} style={styles.banner} contentFit="cover" />
+            <View style={styles.bannerContainer}>
+              <Image source={{ uri: event.banner }} style={styles.banner} contentFit="cover" />
+              <Pressable style={styles.backButton} onPress={() => router.back()}>
+                <SymbolView name="chevron.left" size={18} tintColor="#fff" />
+              </Pressable>
+            </View>
           )}
 
           <View style={styles.topSection}>
@@ -205,6 +288,39 @@ export default function EventDetailScreen() {
                 </View>
               </View>
             )}
+
+            {(() => {
+              const raw = [
+                ...(participations?.[0]?.session_docs ?? []),
+                ...(participations?.flatMap((p) => p.docs ?? []) ?? []),
+              ];
+              const seen = new Set<string>();
+              const allDocs = raw.filter((d) => {
+                const k = `${d.type}-${d.key}`;
+                if (seen.has(k)) return false;
+                seen.add(k);
+                return true;
+              });
+              if (allDocs.length === 0) return null;
+              return (
+                <>
+                  <Pressable style={styles.docsButton} onPress={() => setDocsVisible(true)}>
+                    <Text style={styles.docsButtonText}>{t("library.documents")}</Text>
+                  </Pressable>
+                  <Modal visible={docsVisible} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setDocsVisible(false)}>
+                    <View style={styles.modalContainer}>
+                      <View style={styles.modalHandle}><View style={styles.modalHandleBar} /></View>
+                      <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>{t("library.documents")}</Text>
+                      </View>
+                      <ScrollView style={styles.modalScroll}>
+                        {renderDocs(allDocs)}
+                      </ScrollView>
+                    </View>
+                  </Modal>
+                </>
+              );
+            })()}
           </View>
 
           <View style={styles.bottomSection}>
@@ -238,8 +354,18 @@ export default function EventDetailScreen() {
                     }
                     return null;
                   })()}
-                  <Pressable style={styles.sessionButton}>
-                    <Text style={styles.sessionButtonText}>{t("library.joinLive")}</Text>
+                  <Pressable
+                    style={[styles.sessionButton, !canJoin && styles.sessionButtonDisabled]}
+                    disabled={!canJoin || joining}
+                    onPress={() => handleJoin(next.id)}
+                  >
+                    {joining ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.sessionButtonText}>
+                        {canJoin ? t("library.joinLive") : countdownText ? t("agenda.startsIn", { time: countdownText }) : t("library.joinLive")}
+                      </Text>
+                    )}
                   </Pressable>
                 </View>
               </View>
@@ -334,9 +460,13 @@ export default function EventDetailScreen() {
                         <Pressable
                           style={[styles.sessionButton, !p.recordings_watchable && styles.sessionButtonDisabled]}
                           onPress={() => handleWatchRecording(p)}
-                          disabled={!p.recordings_watchable}
+                          disabled={!p.recordings_watchable || watchingId === p.id}
                         >
-                          <Text style={styles.sessionButtonText}>{t("library.watchRecording")}</Text>
+                          {watchingId === p.id ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Text style={styles.sessionButtonText}>{t("library.watchRecording")}</Text>
+                          )}
                         </Pressable>
                       )}
                     </>
@@ -347,7 +477,7 @@ export default function EventDetailScreen() {
           </View>
         </ScrollView>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -356,15 +486,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F1F4EC",
   },
-  handle: {
+  docLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(241,244,236,0.8)",
     alignItems: "center",
-    paddingVertical: 10,
-  },
-  handleBar: {
-    width: 36,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "#C4C4C4",
+    justifyContent: "center",
+    zIndex: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -374,11 +501,24 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  bannerContainer: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
   banner: {
     height: 180,
     borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 12,
+  },
+  backButton: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   topSection: {
     backgroundColor: "#F1F4EC",
@@ -388,8 +528,7 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     backgroundColor: "#FBFCF4",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 24,
     padding: 20,
     paddingBottom: 40,
     gap: 16,
@@ -506,8 +645,9 @@ const styles = StyleSheet.create({
   sessionButton: {
     backgroundColor: "#336B57",
     borderRadius: 12,
-    paddingVertical: 10,
+    height: 44,
     alignItems: "center",
+    justifyContent: "center",
     marginTop: 4,
   },
   sessionButtonDisabled: {
@@ -517,6 +657,70 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
     color: "#fff",
+  },
+  docsButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 10,
+  },
+  docsButtonText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+    color: "#fff",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#F1F4EC",
+  },
+  modalHandle: {
+    alignItems: "center",
+    paddingTop: 15,
+    paddingBottom: 10,
+  },
+  modalHandleBar: {
+    width: 36,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#C4C4C4",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  modalTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 20,
+    color: "#183228",
+  },
+  modalScroll: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  docsContainer: {},
+  docDivider: {
+    height: 1,
+    backgroundColor: "#E8EBEA",
+    marginHorizontal: 12,
+  },
+  docRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#F1F4EC",
+    borderRadius: 12,
+    padding: 12,
+  },
+  docName: {
+    flex: 1,
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: "#336B57",
+    lineHeight: 18,
   },
   infoRow: {
     flexDirection: "row",

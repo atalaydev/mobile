@@ -1,43 +1,14 @@
-import { Header } from "@/components/Header";
-import { HeaderProvider } from "@/contexts/HeaderContext";
-import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { useTranslation } from "react-i18next";
-import { View, StyleSheet } from "react-native";
+import { Stack } from "expo-router";
 
 export default function AppLayout() {
-  const { t } = useTranslation();
-
   return (
-    <HeaderProvider>
-      <View style={styles.root}>
-        <Header />
-        <NativeTabs tintColor="#336B57">
-          <NativeTabs.Trigger name="index" hidden />
-          <NativeTabs.Trigger name="agenda">
-            <NativeTabs.Trigger.Icon sf="calendar" />
-            <NativeTabs.Trigger.Label>{t("tabs.agenda")}</NativeTabs.Trigger.Label>
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="explore">
-            <NativeTabs.Trigger.Icon sf="safari" />
-            <NativeTabs.Trigger.Label>{t("tabs.explore")}</NativeTabs.Trigger.Label>
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="library">
-            <NativeTabs.Trigger.Icon sf="books.vertical" />
-            <NativeTabs.Trigger.Label>{t("tabs.library")}</NativeTabs.Trigger.Label>
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="profile">
-            <NativeTabs.Trigger.Icon sf="person.crop.circle" />
-            <NativeTabs.Trigger.Label>{t("tabs.profile")}</NativeTabs.Trigger.Label>
-          </NativeTabs.Trigger>
-        </NativeTabs>
-      </View>
-    </HeaderProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="library/event/[id]/[paymentId]" options={{ presentation: "fullScreenModal" }} />
+      <Stack.Screen name="library/session/[id]/[paymentId]" options={{ presentation: "formSheet" }} />
+      <Stack.Screen name="watch" options={{ presentation: "fullScreenModal" }} />
+      <Stack.Screen name="zoom" options={{ presentation: "fullScreenModal" }} />
+      <Stack.Screen name="notifications" options={{ presentation: "formSheet", headerShown: true, headerTitle: "Bildirimler" }} />
+    </Stack>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#FBFCF4",
-  },
-});

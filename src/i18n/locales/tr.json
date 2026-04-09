@@ -79,6 +79,7 @@
     "currentSession": "{{current}}. Oturum",
     "sessionsTitle": "Oturumlar",
     "recordingPart": "{{current}}. Bölüm",
+    "documents": "Dökümanlar",
     "emptyPlanned": "Planlanan oturum bulunmuyor.",
     "emptyPast": "Geçmiş oturum bulunmuyor.",
     "review": "Değerlendir",

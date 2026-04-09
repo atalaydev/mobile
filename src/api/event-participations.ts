@@ -36,3 +36,13 @@ export const joinEventParticipation = async (id: string): Promise<ZoomCredential
   const { data } = await axios.get<ZoomCredentials>(`/1/event-participations/${id}/join/`);
   return data;
 };
+
+export const getDocumentUrl = async (participationId: string, key: string, hls?: boolean): Promise<string> => {
+  const { data } = await axios.get<{ url: string }>(`/1/event-participations/${participationId}/document/${key}/`, { params: hls ? { hls: true } : undefined });
+  return data.url;
+};
+
+export const getRecordingUrl = async (participationId: string, recordingId: string): Promise<string> => {
+  const { data } = await axios.get<{ url: string }>(`/1/event-participations/${participationId}/watch/${recordingId}/`, { params: { hls: true } });
+  return data.url;
+};

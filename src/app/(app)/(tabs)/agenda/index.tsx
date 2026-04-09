@@ -30,6 +30,7 @@ export default function AgendaScreen() {
   const name = user?.user_metadata?.full_name as string | undefined;
   const timezone = (user?.user_metadata?.timezone as string) ?? "Europe/Istanbul";
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [joining, setJoining] = useState(false);
 
   const { dateRange, tzOffsetMs } = useMemo(() => {
     const toUTCStr = (date: Date) => date.toISOString().slice(0, 19) + "Z";
@@ -158,17 +159,17 @@ export default function AgendaScreen() {
   };
 
   const handleJoin = async (item: AgendaItem) => {
+    setJoining(true);
     try {
-      console.log("join: fetching credentials for", item.type, item.data.id);
       const credentials = item.type === "participation"
         ? await joinEventParticipation(item.data.id)
         : await joinAppointment(item.data.id);
-      console.log("join: credentials received", JSON.stringify(credentials));
       const userName = user?.user_metadata?.full_name ?? `*****${user?.phone?.slice(-4)}`;
       router.push({ pathname: "/zoom", params: { token: credentials.token, id: credentials.id, password: credentials.password, userName } });
-      console.log("join: zoom meeting started");
     } catch (e) {
       console.error("join failed:", e);
+    } finally {
+      setJoining(false);
     }
   };
 
@@ -193,6 +194,7 @@ export default function AgendaScreen() {
         }}
         variant={item.type === "participation" ? "event" : "appointment"}
         onJoin={() => handleJoin(item)}
+        loading={joining}
       />
     );
   };
