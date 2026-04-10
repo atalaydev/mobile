@@ -16,11 +16,6 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 
-const locationTypeKeys: Record<string, string> = {
-  remote: "event.locationRemote",
-  hybrid: "event.locationHybrid",
-  "in-person": "event.locationInPerson",
-};
 
 export default function AgendaScreen() {
   const { t } = useTranslation();
@@ -148,12 +143,11 @@ export default function AgendaScreen() {
 
   const getItemLocation = (item: AgendaItem) => {
     if (item.type === "participation") {
-      const event = item.data.event;
-      if (!event) return { label: "", location: "" };
-      return {
-        label: locationTypeKeys[event.type] ? t(locationTypeKeys[event.type]) : event.type,
-        location: event.type !== "remote" ? (event.location ?? "") : "",
-      };
+      const p = item.data;
+      if (p.event_session_location === 2) {
+        return { label: p.event_session_address ?? t("event.locationInPerson"), location: "" };
+      }
+      return { label: t("event.locationRemote"), location: "" };
     }
     return { label: t("event.locationRemote"), location: "" };
   };
@@ -193,7 +187,8 @@ export default function AgendaScreen() {
           },
         }}
         variant={item.type === "participation" ? "event" : "appointment"}
-        onJoin={() => handleJoin(item)}
+        onJoin={item.type === "participation" && item.data.event_session_location === 2 ? undefined : () => handleJoin(item)}
+        onDetails={item.type === "participation" ? () => router.push(`/library/event/${item.data.event_id}/${item.data.payment_id}`) : undefined}
         loading={joining}
       />
     );

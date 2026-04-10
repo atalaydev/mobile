@@ -22,22 +22,23 @@ type UpcomingActivityCardProps = {
   activity: Activity;
   variant: "event" | "appointment";
   onJoin?: () => void;
+  onDetails?: () => void;
   loading?: boolean;
 };
 
-export function UpcomingActivityCard({ activity, variant, onJoin, loading }: UpcomingActivityCardProps) {
+export function UpcomingActivityCard({ activity, variant, onJoin, onDetails, loading }: UpcomingActivityCardProps) {
   const { t } = useTranslation();
   const { label: countdown, long: countdownLong, remainingMs } = useCountdown(activity.startDate, t);
   const isNear = remainingMs <= 10 * 60 * 1000;
 
   return (
     <Animated.View entering={FadeInUp.duration(400)} style={styles.card}>
-      <View style={styles.imageContainer}>
+      <Pressable style={styles.imageContainer} onPress={onDetails}>
         <Image source={{ uri: activity.imageUrl }} style={styles.image} contentFit="cover" />
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{variant === "event" ? t("agenda.event") : t("agenda.appointment")}</Text>
         </View>
-      </View>
+      </Pressable>
 
       <View style={styles.body}>
         <Text style={styles.title}>{activity.title}</Text>
@@ -67,15 +68,17 @@ export function UpcomingActivityCard({ activity, variant, onJoin, loading }: Upc
           </View>
         </View>
 
-        <Pressable style={[styles.button, !isNear && styles.buttonDisabled]} onPress={onJoin} disabled={!isNear || loading}>
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>
-              {isNear ? t("agenda.join") : t("agenda.startsIn", { time: countdownLong })}
-            </Text>
-          )}
-        </Pressable>
+        {onJoin !== undefined && (
+          <Pressable style={[styles.button, !isNear && styles.buttonDisabled]} onPress={onJoin} disabled={!isNear || loading}>
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>
+                {isNear ? t("agenda.join") : t("agenda.startsIn", { time: countdownLong })}
+              </Text>
+            )}
+          </Pressable>
+        )}
       </View>
     </Animated.View>
   );

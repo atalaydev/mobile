@@ -65,10 +65,10 @@ export default function LibraryScreen() {
     query: {
       filters: {
         object_type: "EVENT_PARTICIPATION",
-        has_upcoming_session: eventStatusFilter === "active",
+        has_current_session: eventStatusFilter === "active",
         ...(eventSearch && { search: eventSearch }),
       },
-      sort: eventStatusFilter === "active" ? "next_session" : "-last_session",
+      sort: eventStatusFilter === "active" ? "latest_session_end" : "-last_session",
       prefetch: { event: true },
     },
     enabled: isFocused && activeTab === "events",
@@ -78,10 +78,10 @@ export default function LibraryScreen() {
     query: {
       filters: {
         object_type: "SESSION_APPOINTMENT",
-        has_upcoming_session: sessionStatusFilter === "active",
+        has_current_session: sessionStatusFilter === "active",
         ...(sessionSearch && { search: sessionSearch }),
       },
-      sort: sessionStatusFilter === "active" ? "next_session" : "-last_session",
+      sort: sessionStatusFilter === "active" ? "latest_session_end" : "-last_session",
       prefetch: { session_option: true },
     },
     enabled: isFocused && activeTab === "sessions",
@@ -221,7 +221,7 @@ export default function LibraryScreen() {
               <EventCard
                 title={item.title}
                 imageUrl={event?.banner ?? ""}
-                locationType={event?.type === "remote" ? t("library.online") : event?.type ?? ""}
+                locationType={({ remote: t("event.locationRemote"), hybrid: t("event.locationHybrid"), "in-person": t("event.locationInPerson"), in_person: t("event.locationInPerson") })[event?.type ?? ""] ?? event?.type ?? ""}
                 sessionCount={item.planned_session_count}
                 currentSession={item.planned_session_count > 1 && item.upcoming_session_count > 0 ? item.completed_session_count + 1 : undefined}
                 date={dateLabel}

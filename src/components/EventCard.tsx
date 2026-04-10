@@ -24,7 +24,7 @@ export function EventCard({ title, imageUrl, locationType, sessionCount, current
   const { t } = useTranslation();
 
   return (
-    <View style={styles.card}>
+    <Pressable style={styles.card} onPress={onDetails}>
       <View style={styles.body}>
         <View>
           <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
@@ -63,11 +63,11 @@ export function EventCard({ title, imageUrl, locationType, sessionCount, current
       </View>
 
       <View style={styles.footer}>
-        <Pressable style={styles.joinButton} onPress={onDetails}>
+        <View style={styles.joinButton}>
           <Text style={styles.joinButtonText}>{t("library.viewDetails")}</Text>
-        </Pressable>
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

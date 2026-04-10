@@ -12,12 +12,17 @@ export interface EventParticipation {
   start_date: string;
   end_date: string;
   state: string;
+  status: number;
+  payment_id?: string;
+  event_session_location?: 1 | 2;
+  event_session_address?: string;
   recording_available_until?: string;
   recordings_watchable?: boolean;
   recordings_access_duration?: number;
   location_type?: string;
   recordings?: string[];
   event_session_title?: string;
+  is_reviewed?: boolean;
   docs?: Document[];
   session_docs?: Document[];
 

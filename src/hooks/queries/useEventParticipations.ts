@@ -21,3 +21,4 @@ export function useEventParticipations(options?: useEventParticipationsOptions) 
     enabled: options?.enabled ?? true,
   });
 }
+

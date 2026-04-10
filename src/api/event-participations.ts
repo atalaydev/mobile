@@ -46,3 +46,11 @@ export const getRecordingUrl = async (participationId: string, recordingId: stri
   const { data } = await axios.get<{ url: string }>(`/1/event-participations/${participationId}/watch/${recordingId}/`, { params: { hls: true } });
   return data.url;
 };
+
+export const submitReview = async (participationId: string, rating: number, comment: string): Promise<void> => {
+  await axios.post(`/1/event-participations/${participationId}/review/`, { rating, comment });
+};
+
+export const cancelEventParticipation = async (eventId: string, reason: string): Promise<void> => {
+  await axios.post(`/1/event-participations/cancel/`, { event_id: eventId, refund_to: 1, reason });
+};

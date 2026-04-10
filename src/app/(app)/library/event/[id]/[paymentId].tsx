@@ -1,4 +1,6 @@
-import { getDocumentUrl, getEventParticipations, getRecordingUrl, joinEventParticipation } from "@/api/event-participations";
+import { cancelEventParticipation, getDocumentUrl, getRecordingUrl, joinEventParticipation, submitReview } from "@/api/event-participations";
+import { useEventParticipations } from "@/hooks/queries/useEventParticipations";
+import { usePayment } from "@/hooks/queries/usePayment";
 import { useAuth } from "@/contexts/AuthContext";
 import { Text } from "@/components/Text";
 import { colors } from "@/constants/colors";
@@ -6,45 +8,81 @@ import { useCountdown } from "@/hooks/useCountdown";
 import { useEvent } from "@/hooks/queries/useEvent";
 import { Category } from "@/types/category";
 import { Document, EventParticipation } from "@/types/eventParticipation";
+import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import i18n from "i18next";
-import { useMemo, useState } from "react";
+import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Alert, FlatList, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, Alert, FlatList, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useQuery } from "@tanstack/react-query";
 
 export default function EventDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { id, paymentId } = useLocalSearchParams<{ id: string; paymentId: string }>();
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuth();
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [sessionTab, setSessionTab] = useState<"planned" | "past">("planned");
-  const [docsVisible, setDocsVisible] = useState(false);
+  const docsSheetRef = useRef<BottomSheet>(null);
   const [docLoading, setDocLoading] = useState(false);
   const [joining, setJoining] = useState(false);
   const [watchingId, setWatchingId] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const actionsSheetRef = useRef<BottomSheet>(null);
+  const recordingsSheetRef = useRef<BottomSheet>(null);
+  const [recordingsSheetData, setRecordingsSheetData] = useState<{ participationId: string; recordings: string[] } | null>(null);
+  const sessionDocsSheetRef = useRef<BottomSheet>(null);
+  const sessionActionsSheetRef = useRef<BottomSheet>(null);
+  const [sessionDocsSheetData, setSessionDocsSheetData] = useState<{ participationId: string; docs: Document[] } | null>(null);
+  const [sessionActionsData, setSessionActionsData] = useState<{ participationId: string; docs: Document[] } | null>(null);
+  const cancelSheetRef = useRef<BottomSheet>(null);
+  const reviewSheetRef = useRef<BottomSheet>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([refetchEvent(), refetchParticipations()]);
-    setRefreshing(false);
+  const handleSubmitReview = async () => {
+    const pid = participations?.[0]?.id;
+    if (!pid || rating === 0) return;
+    setSubmittingReview(true);
+    try {
+      await submitReview(pid, rating, reviewText);
+      reviewSheetRef.current?.close();
+      refetchParticipations();
+    } catch (e) {
+      console.error("review failed:", e);
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+  const handleCancel = async () => {
+    if (!cancelReason.trim()) return;
+    setCancelling(true);
+    try {
+      await cancelEventParticipation(id, cancelReason.trim());
+      cancelSheetRef.current?.close();
+      setCancelReason("");
+      Alert.alert(t("library.cancelSuccess"));
+      router.back();
+    } catch (e) {
+      Alert.alert(t("common.error"), t("library.cancelFailed"));
+    } finally {
+      setCancelling(false);
+    }
   };
 
+  const [refreshing, setRefreshing] = useState(false);
+
   const { data: event, isLoading, refetch: refetchEvent } = useEvent(id);
-  const { data: participations, refetch: refetchParticipations } = useQuery<EventParticipation[]>({
-    queryKey: ["event-participations", paymentId],
-    queryFn: async () => {
-      const res = await getEventParticipations({ filters: { payment: paymentId }, limit: 100, sort: "-start_date" });
-      return res.results;
-    },
-    enabled: !!paymentId,
-  });
+  const { data: participations, refetch: refetchParticipations } = useEventParticipations({ query: { filters: { payment: paymentId }, limit: 100, sort: "-start_date" }, enabled: !!paymentId });
+
+  const { data: payment } = usePayment(paymentId);
 
   const expert = event && typeof event.expert === "object" ? event.expert : null;
   const categories = (event?.categories ?? []).filter((c): c is Category => typeof c === "object").sort((a, b) => Number(a.sub) - Number(b.sub) || a.name.localeCompare(b.name));
@@ -78,10 +116,41 @@ export default function EventDetailScreen() {
     return { next: nextSession, past: pastSessions.reverse(), planned: plannedSessions, sessionNumbers };
   }, [participations]);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchEvent(), refetchParticipations()]);
+    setRefreshing(false);
+  };
+
+  const allDocs = useMemo(() => {
+    const raw = participations?.flatMap((p) => p.docs ?? []) ?? [];
+    const seen = new Set<string>();
+    return raw.filter((d) => {
+      const k = `${d.type}-${d.key}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }, [participations]);
+
+  const canCancel = useMemo(() => {
+    if (!participations?.length) return false;
+    const alreadyCancelled = participations.some((p) => p.status < 0);
+    if (alreadyCancelled) return false;
+    const now = Date.now();
+    const allFar = participations.every((p) => new Date(p.start_date).getTime() - now > 24 * 60 * 60 * 1000);
+    return allFar;
+  }, [participations]);
+
   const nextStartDate = next ? new Date(next.start_date) : new Date(0);
   const { long: countdownText, remainingMs } = useCountdown(nextStartDate, t);
   const TEN_MINUTES = 10 * 60 * 1000;
   const canJoin = remainingMs <= TEN_MINUTES;
+
+  const sessionLocationLabel = (p: EventParticipation) => {
+    if (p.event_session_location === 2) return p.event_session_address ?? t("event.locationInPerson");
+    return t("event.locationRemote");
+  };
 
   const formatSessionDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -128,24 +197,14 @@ export default function EventDetailScreen() {
       return;
     }
 
-    Alert.alert(
-      "",
-      undefined,
-      [
-        ...recordings.map((recordingId, i) => ({
-          text: t("library.recordingPart", { current: i + 1 }),
-          onPress: () => openRecording(p.id, recordingId),
-        })),
-        { text: t("notifications.cancel"), style: "cancel" as const },
-      ],
-    );
+    setRecordingsSheetData({ participationId: p.id, recordings });
+    recordingsSheetRef.current?.expand();
   };
 
   const handleOpenDoc = async (doc: Document) => {
     const pid = participations?.[0]?.id;
     if (!pid) return;
 
-    setDocsVisible(false);
     setDocLoading(true);
 
     try {
@@ -163,13 +222,13 @@ export default function EventDetailScreen() {
   };
 
   const renderDocs = (docs: Document[]) => (
-    <View style={styles.docsContainer}>
+    <View>
       {docs.map((doc, i) => (
         <View key={`${doc.type}-${doc.key}`}>
-          {i > 0 && <View style={styles.docDivider} />}
-          <Pressable style={styles.docRow} onPress={() => handleOpenDoc(doc)}>
-            <SymbolView name={doc.type === "video" ? "play.circle" : "doc.text"} size={18} tintColor={colors.primary} />
-            <Text style={styles.docName} numberOfLines={1}>{doc.name}</Text>
+          {i > 0 && <View style={styles.actionDivider} />}
+          <Pressable style={styles.actionItem} onPress={() => handleOpenDoc(doc)}>
+            <SymbolView name={doc.type === "video" ? "play.circle" : "doc.text"} size={20} tintColor="#183228" />
+            <Text style={styles.actionItemText} numberOfLines={1}>{doc.name}</Text>
           </Pressable>
         </View>
       ))}
@@ -177,7 +236,7 @@ export default function EventDetailScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {docLoading && (
         <View style={styles.docLoadingOverlay}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -189,7 +248,7 @@ export default function EventDetailScreen() {
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       ) : (
-        <ScrollView style={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
+        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingRight: 4 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
           {event?.banner && (
             <View style={styles.bannerContainer}>
               <Image source={{ uri: event.banner }} style={styles.banner} contentFit="cover" />
@@ -289,38 +348,42 @@ export default function EventDetailScreen() {
               </View>
             )}
 
-            {(() => {
-              const raw = [
-                ...(participations?.[0]?.session_docs ?? []),
-                ...(participations?.flatMap((p) => p.docs ?? []) ?? []),
-              ];
-              const seen = new Set<string>();
-              const allDocs = raw.filter((d) => {
-                const k = `${d.type}-${d.key}`;
-                if (seen.has(k)) return false;
-                seen.add(k);
-                return true;
-              });
-              if (allDocs.length === 0) return null;
-              return (
-                <>
-                  <Pressable style={styles.docsButton} onPress={() => setDocsVisible(true)}>
-                    <Text style={styles.docsButtonText}>{t("library.documents")}</Text>
-                  </Pressable>
-                  <Modal visible={docsVisible} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setDocsVisible(false)}>
-                    <View style={styles.modalContainer}>
-                      <View style={styles.modalHandle}><View style={styles.modalHandleBar} /></View>
-                      <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>{t("library.documents")}</Text>
-                      </View>
-                      <ScrollView style={styles.modalScroll}>
-                        {renderDocs(allDocs)}
-                      </ScrollView>
-                    </View>
-                  </Modal>
-                </>
-              );
-            })()}
+            <View style={styles.reviewCard}>
+              <View style={styles.reviewRow}>
+                <View>
+                  <Text style={styles.reviewLabel}>{t("library.rate")}</Text>
+                  <View style={styles.starsRow}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Pressable key={star} onPress={() => setRating(star)} disabled={participations?.some((p) => p.is_reviewed)}>
+                        <Star filled={star <= rating} size={24} />
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+                <Pressable style={[styles.reviewProceedButton, rating === 0 && { opacity: 0.5 }]} onPress={() => reviewSheetRef.current?.expand()} disabled={rating === 0 || participations?.some((p) => p.is_reviewed)}>
+                  <Text style={styles.reviewProceedText}>{t("library.proceed")}</Text>
+                </Pressable>
+              </View>
+              {participations?.some((p) => p.is_reviewed) && (
+                <View style={styles.reviewOverlay}>
+                  <BlurView intensity={15} tint="light" style={StyleSheet.absoluteFill} />
+                  <View style={styles.reviewThanksRow}>
+                    <SymbolView name="checkmark.circle.fill" size={20} tintColor={colors.primary} />
+                    <Text style={styles.reviewThanksText}>{t("library.reviewThanks")}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+
+            <View style={styles.docsRow}>
+                    <Pressable style={styles.docsButton} onPress={() => docsSheetRef.current?.expand()}>
+                      <Text style={styles.docsButtonText}>{t("library.documents")}</Text>
+                    </Pressable>
+                    <Pressable style={styles.moreButton} onPress={() => actionsSheetRef.current?.expand()}>
+                      <SymbolView name="ellipsis" size={20} tintColor="#336B57" />
+                    </Pressable>
+                  </View>
           </View>
 
           <View style={styles.bottomSection}>
@@ -338,7 +401,7 @@ export default function EventDetailScreen() {
                   <Text style={styles.sessionTitle}>{next.event_session_title || event?.title}</Text>
                   <View style={styles.sessionLocationRow}>
                     <SymbolView name="mappin.and.ellipse" size={14} tintColor={colors.primary} />
-                    <Text style={styles.sessionLocation}>{t("library.online")}</Text>
+                    <Text style={styles.sessionLocation}>{sessionLocationLabel(next)}</Text>
                   </View>
                   {(() => {
                     const deadline = getRecordingDeadline(next);
@@ -354,19 +417,34 @@ export default function EventDetailScreen() {
                     }
                     return null;
                   })()}
-                  <Pressable
-                    style={[styles.sessionButton, !canJoin && styles.sessionButtonDisabled]}
-                    disabled={!canJoin || joining}
-                    onPress={() => handleJoin(next.id)}
-                  >
-                    {joining ? (
-                      <ActivityIndicator size="small" color="#fff" />
+                  <View style={styles.docsRow}>
+                    {next.event_session_location === 2 ? (
+                      (next.session_docs?.length ?? 0) > 0 && (
+                        <Pressable style={[styles.sessionButton, { flex: 1 }]} onPress={() => { setSessionDocsSheetData({ participationId: next.id, docs: next.session_docs ?? [] }); sessionDocsSheetRef.current?.expand(); }}>
+                          <Text style={styles.sessionButtonText}>{t("library.documents")}</Text>
+                        </Pressable>
+                      )
                     ) : (
-                      <Text style={styles.sessionButtonText}>
-                        {canJoin ? t("library.joinLive") : countdownText ? t("agenda.startsIn", { time: countdownText }) : t("library.joinLive")}
-                      </Text>
+                      <>
+                        <Pressable
+                          style={[styles.sessionButton, { flex: 1 }, !canJoin && styles.sessionButtonDisabled]}
+                          disabled={!canJoin || joining}
+                          onPress={() => handleJoin(next.id)}
+                        >
+                          {joining ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Text style={styles.sessionButtonText}>
+                              {canJoin ? t("library.joinLive") : countdownText ? t("agenda.startsIn", { time: countdownText }) : t("library.joinLive")}
+                            </Text>
+                          )}
+                        </Pressable>
+                        <Pressable style={styles.moreButton} onPress={() => { setSessionActionsData({ participationId: next.id, docs: next.session_docs ?? [] }); sessionActionsSheetRef.current?.expand(); }}>
+                          <SymbolView name="ellipsis" size={20} tintColor="#336B57" />
+                        </Pressable>
+                      </>
                     )}
-                  </Pressable>
+                  </View>
                 </View>
               </View>
             )}
@@ -408,7 +486,7 @@ export default function EventDetailScreen() {
                 <Text style={styles.sessionTitle}>{p.event_session_title || event?.title}</Text>
                 <View style={styles.sessionLocationRow}>
                   <SymbolView name="mappin.and.ellipse" size={14} tintColor={colors.primary} />
-                  <Text style={styles.sessionLocation}>{t("library.online")}</Text>
+                  <Text style={styles.sessionLocation}>{sessionLocationLabel(p)}</Text>
                 </View>
                 {(() => {
                   const deadline = getRecordingDeadline(p);
@@ -424,6 +502,11 @@ export default function EventDetailScreen() {
                   }
                   return null;
                 })()}
+                {(p.session_docs?.length ?? 0) > 0 && (
+                  <Pressable style={[styles.sessionButton, { marginTop: 4 }]} onPress={() => { setSessionDocsSheetData({ participationId: p.id, docs: p.session_docs ?? [] }); sessionDocsSheetRef.current?.expand(); }}>
+                    <Text style={styles.sessionButtonText}>{t("library.documents")}</Text>
+                  </Pressable>
+                )}
               </View>
             ))}
 
@@ -443,11 +526,19 @@ export default function EventDetailScreen() {
                 <Text style={styles.sessionTitle}>{p.event_session_title || event?.title}</Text>
                 <View style={styles.sessionLocationRow}>
                   <SymbolView name="mappin.and.ellipse" size={14} tintColor={colors.primary} />
-                  <Text style={styles.sessionLocation}>{t("library.online")}</Text>
+                  <Text style={styles.sessionLocation}>{sessionLocationLabel(p)}</Text>
                 </View>
                 {(() => {
                   const deadline = getRecordingDeadline(p);
-                  if (!deadline) return null;
+                  const hasRecordings = (p.recordings?.length ?? 0) > 0;
+                  const openSessionDocs = () => { setSessionDocsSheetData({ participationId: p.id, docs: p.session_docs ?? [] }); sessionDocsSheetRef.current?.expand(); };
+                  if (!deadline || !hasRecordings) return (p.session_docs?.length ?? 0) > 0 ? (
+                    <View style={styles.docsRow}>
+                      <Pressable style={[styles.sessionButton, { flex: 1 }]} onPress={openSessionDocs}>
+                        <Text style={styles.sessionButtonText}>{t("library.documents")}</Text>
+                      </Pressable>
+                    </View>
+                  ) : null;
                   return (
                     <>
                       <View style={styles.recordingInfo}>
@@ -456,9 +547,9 @@ export default function EventDetailScreen() {
                           {t("library.recordingAvailableBefore")}<Text style={styles.recordingBold}>{formatSessionDate(deadline.toISOString())}</Text>{t("library.recordingAvailableAfter")}
                         </Text>
                       </View>
-                      {(p.recordings?.length ?? 0) > 0 && (
+                      <View style={styles.docsRow}>
                         <Pressable
-                          style={[styles.sessionButton, !p.recordings_watchable && styles.sessionButtonDisabled]}
+                          style={[styles.sessionButton, { flex: 1 }, !p.recordings_watchable && styles.sessionButtonDisabled]}
                           onPress={() => handleWatchRecording(p)}
                           disabled={!p.recordings_watchable || watchingId === p.id}
                         >
@@ -468,7 +559,10 @@ export default function EventDetailScreen() {
                             <Text style={styles.sessionButtonText}>{t("library.watchRecording")}</Text>
                           )}
                         </Pressable>
-                      )}
+                        <Pressable style={styles.moreButton} onPress={() => { setSessionActionsData({ participationId: p.id, docs: p.session_docs ?? [] }); sessionActionsSheetRef.current?.expand(); }}>
+                          <SymbolView name="ellipsis" size={20} tintColor="#336B57" />
+                        </Pressable>
+                      </View>
                     </>
                   );
                 })()}
@@ -477,7 +571,204 @@ export default function EventDetailScreen() {
           </View>
         </ScrollView>
       )}
-    </SafeAreaView>
+
+      <BottomSheet
+        ref={sessionActionsSheetRef}
+        index={-1}
+        enableDynamicSizing
+        enablePanDownToClose
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+        )}
+        backgroundStyle={styles.actionSheetBackground}
+        handleIndicatorStyle={styles.actionHandleBar}
+      >
+        <BottomSheetView style={styles.actionSheetContent}>
+          <Pressable style={styles.actionItem} onPress={() => { sessionActionsSheetRef.current?.close(); setTimeout(() => { setSessionDocsSheetData(sessionActionsData); sessionDocsSheetRef.current?.expand(); }, 300); }}>
+            <SymbolView name="doc.text" size={20} tintColor="#183228" />
+            <Text style={styles.actionItemText}>{t("library.documents")}</Text>
+          </Pressable>
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet
+        ref={sessionDocsSheetRef}
+        index={-1}
+        enableDynamicSizing
+        enablePanDownToClose
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+        )}
+        backgroundStyle={styles.actionSheetBackground}
+        handleIndicatorStyle={styles.actionHandleBar}
+      >
+        <BottomSheetView style={(sessionDocsSheetData?.docs.length ?? 0) === 0 ? styles.actionSheetContentEmpty : styles.actionSheetContent}>
+          {(sessionDocsSheetData?.docs.length ?? 0) === 0 ? (
+            <Text style={styles.emptyText}>{t("library.emptyDocuments")}</Text>
+          ) : (
+            renderDocs(sessionDocsSheetData?.docs ?? [])
+          )}
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet
+        ref={recordingsSheetRef}
+        index={-1}
+        enableDynamicSizing
+        enablePanDownToClose
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+        )}
+        backgroundStyle={styles.actionSheetBackground}
+        handleIndicatorStyle={styles.actionHandleBar}
+      >
+        <BottomSheetView style={styles.actionSheetContent}>
+          {recordingsSheetData?.recordings.map((recordingId, i) => (
+            <View key={recordingId}>
+              {i > 0 && <View style={styles.actionDivider} />}
+              <Pressable style={styles.actionItem} onPress={() => { recordingsSheetRef.current?.close(); openRecording(recordingsSheetData.participationId, recordingId); }}>
+                <SymbolView name="play.circle" size={20} tintColor="#183228" />
+                <Text style={styles.actionItemText}>{t("library.recordingPart", { current: i + 1 })}</Text>
+              </Pressable>
+            </View>
+          ))}
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet
+        ref={docsSheetRef}
+        index={-1}
+        enableDynamicSizing
+        enablePanDownToClose
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+        )}
+        backgroundStyle={styles.actionSheetBackground}
+        handleIndicatorStyle={styles.actionHandleBar}
+      >
+        <BottomSheetView style={allDocs.length === 0 ? styles.actionSheetContentEmpty : styles.actionSheetContent}>
+          {allDocs.length === 0 ? (
+            <Text style={styles.emptyText}>{t("library.emptyDocuments")}</Text>
+          ) : (
+            renderDocs(allDocs)
+          )}
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet
+        ref={reviewSheetRef}
+        index={-1}
+        enableDynamicSizing
+        enablePanDownToClose
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+        )}
+        backgroundStyle={styles.actionSheetBackground}
+        handleIndicatorStyle={styles.actionHandleBar}
+      >
+        <BottomSheetView style={styles.reviewSheetContent}>
+          <Text style={styles.cancelSheetTitle}>{t("library.rate")}</Text>
+          <Text style={styles.reviewModalLabel}>{t("library.score")}</Text>
+          <View style={styles.starsRowLarge}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Pressable key={star} onPress={() => setRating(star)}>
+                <Star filled={star <= rating} size={40} />
+              </Pressable>
+            ))}
+          </View>
+          <Text style={styles.reviewModalLabel}>{t("library.addComment")}</Text>
+          <TextInput
+            style={styles.reviewInput}
+            placeholder={t("library.commentPlaceholder")}
+            placeholderTextColor="#999"
+            multiline
+            value={reviewText}
+            onChangeText={setReviewText}
+          />
+          <View style={styles.reviewModalFooter}>
+            <Pressable style={styles.reviewSubmitButton} onPress={handleSubmitReview} disabled={submittingReview}>
+              {submittingReview ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.reviewSubmitText}>{t("library.submit")}</Text>
+              )}
+            </Pressable>
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet
+        ref={cancelSheetRef}
+        index={-1}
+        enableDynamicSizing
+        enablePanDownToClose
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+        )}
+        backgroundStyle={styles.actionSheetBackground}
+        handleIndicatorStyle={styles.actionHandleBar}
+      >
+        <BottomSheetView style={styles.cancelSheetContent}>
+          <Text style={styles.cancelSheetTitle}>{t("library.cancelConfirmTitle")}</Text>
+          <Text style={styles.cancelSheetMessage}>{t("library.cancelConfirmMessage")}</Text>
+          <TextInput
+            style={styles.reviewInput}
+            value={cancelReason}
+            onChangeText={setCancelReason}
+            placeholder={t("library.cancelReasonPlaceholder")}
+            placeholderTextColor="#9DA8A3"
+            multiline
+            numberOfLines={4}
+          />
+          <View style={styles.cancelModalFooter}>
+            <Pressable style={[styles.reviewSubmitButton, styles.cancelDismissButton]} onPress={() => cancelSheetRef.current?.close()}>
+              <Text style={styles.cancelDismissText}>{t("library.cancelDismiss")}</Text>
+            </Pressable>
+            <Pressable style={[styles.reviewSubmitButton, styles.cancelConfirmButton, (!cancelReason.trim() || cancelling) && styles.reviewSubmitDisabled]} onPress={handleCancel} disabled={!cancelReason.trim() || cancelling}>
+              <Text style={styles.cancelConfirmText}>{cancelling ? t("library.cancelling") : t("library.cancel")}</Text>
+            </Pressable>
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet
+        ref={actionsSheetRef}
+        index={-1}
+        enableDynamicSizing
+        enablePanDownToClose
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+        )}
+        backgroundStyle={styles.actionSheetBackground}
+        handleIndicatorStyle={styles.actionHandleBar}
+      >
+        <BottomSheetView style={styles.actionSheetContent}>
+          <Pressable style={styles.actionItem} onPress={() => { actionsSheetRef.current?.close(); Linking.openURL("https://wa.me/905317245599"); }}>
+            <SymbolView name="plus" size={20} tintColor="#183228" />
+            <Text style={styles.actionItemText}>{t("library.getHelp")}</Text>
+          </Pressable>
+          <View style={styles.actionDivider} />
+          <Pressable style={[styles.actionItem, !canCancel && { opacity: 0.4 }]} onPress={() => { if (!canCancel) return; actionsSheetRef.current?.close(); setTimeout(() => cancelSheetRef.current?.expand(), 300); }}>
+            <SymbolView name="xmark.circle" size={20} tintColor="#183228" />
+            <Text style={styles.actionItemText}>{t("library.cancel")}</Text>
+          </Pressable>
+          <View style={styles.actionDivider} />
+          <Pressable style={[styles.actionItem, !payment?.invoice_url && { opacity: 0.4 }]} onPress={() => { if (!payment?.invoice_url) return; actionsSheetRef.current?.close(); Linking.openURL(payment.invoice_url); }}>
+            <SymbolView name="doc.text" size={20} tintColor="#183228" />
+            <Text style={styles.actionItemText}>{t("library.viewInvoice")}</Text>
+          </Pressable>
+        </BottomSheetView>
+      </BottomSheet>
+    </View>
+  );
+}
+
+function Star({ filled, size }: { filled: boolean; size: number }) {
+  return (
+    <View style={{ width: size, height: size }}>
+      <SymbolView name="star.fill" size={size} tintColor={filled ? "#7AA394" : "#FCFCFC"} style={StyleSheet.absoluteFill} />
+      <SymbolView name="star" size={size} tintColor={filled ? "#336B57" : "#CCCDCB"} style={StyleSheet.absoluteFill} />
+    </View>
   );
 }
 
@@ -587,8 +878,9 @@ const styles = StyleSheet.create({
   },
   sessionLocationRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 4,
+    marginBottom: 4,
   },
   sessionLocation: {
     fontFamily: "Inter_400Regular",
@@ -645,7 +937,7 @@ const styles = StyleSheet.create({
   sessionButton: {
     backgroundColor: "#336B57",
     borderRadius: 12,
-    height: 44,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
@@ -658,69 +950,61 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#fff",
   },
+  docsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  actionSheetBackground: {
+    backgroundColor: "#F1F4EC",
+  },
+  actionSheetContent: {
+    paddingLeft: 20,
+    paddingRight: 50,
+    paddingBottom: 32,
+  },
+  actionSheetContentEmpty: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    alignItems: "center",
+  },
+  actionHandleBar: {
+    backgroundColor: "#C4C4C4",
+  },
+  actionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingVertical: 14,
+  },
+  actionItemText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 17,
+    color: "#183228",
+  },
+  actionDivider: {
+    height: 1,
+    backgroundColor: "#E8EBEA",
+  },
+  moreButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   docsButton: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primary,
     borderRadius: 12,
-    paddingVertical: 10,
+    height: 40,
   },
   docsButtonText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
     color: "#fff",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "#F1F4EC",
-  },
-  modalHandle: {
-    alignItems: "center",
-    paddingTop: 15,
-    paddingBottom: 10,
-  },
-  modalHandleBar: {
-    width: 36,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "#C4C4C4",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  modalTitle: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 20,
-    color: "#183228",
-  },
-  modalScroll: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  docsContainer: {},
-  docDivider: {
-    height: 1,
-    backgroundColor: "#E8EBEA",
-    marginHorizontal: 12,
-  },
-  docRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#F1F4EC",
-    borderRadius: 12,
-    padding: 12,
-  },
-  docName: {
-    flex: 1,
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: "#336B57",
-    lineHeight: 18,
   },
   infoRow: {
     flexDirection: "row",
@@ -844,5 +1128,142 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E8EBEA",
     padding: 20,
+  },
+  reviewCard: {
+    backgroundColor: "#FBFCF4",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E8EBEA",
+    padding: 20,
+    gap: 16,
+    overflow: "hidden",
+  },
+  reviewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reviewThanksRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  reviewThanksText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: colors.primary,
+  },
+  reviewRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  reviewLabel: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+    color: "#285444",
+    marginBottom: 8,
+  },
+  starsRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  reviewProceedButton: {
+    backgroundColor: "#F1F6DE",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#336B57",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  reviewProceedText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: colors.primary,
+  },
+  reviewModalLabel: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 15,
+    color: "#183228",
+  },
+  starsRowLarge: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 8,
+  },
+  reviewInput: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    color: "#183228",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E8EBEA",
+    padding: 14,
+    minHeight: 120,
+    textAlignVertical: "top",
+  },
+  reviewModalFooter: {
+    paddingTop: 12,
+  },
+  reviewSheetContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    gap: 8,
+  },
+  cancelSheetContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    gap: 12,
+  },
+  cancelSheetTitle: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 17,
+    color: "#183228",
+  },
+  cancelSheetMessage: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    color: "#4A5E57",
+  },
+  cancelModalFooter: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  reviewSubmitButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelDismissButton: {
+    backgroundColor: "#336B57",
+  },
+  cancelDismissText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 16,
+    color: "#fff",
+  },
+  cancelConfirmButton: {
+    backgroundColor: "#F1F6DE",
+    borderWidth: 1,
+    borderColor: "#336B57",
+  },
+  cancelConfirmText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 16,
+    color: "#336B57",
+  },
+  reviewSubmitDisabled: {
+    opacity: 0.4,
+  },
+  reviewSubmitText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 16,
+    color: "#fff",
   },
 });

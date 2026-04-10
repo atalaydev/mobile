@@ -1,12 +1,13 @@
 import { getCategories } from "@/api/categories";
 import { getEvent } from "@/api/events";
 import { getExperts } from "@/api/experts";
+import { keys } from "@/api/keys";
 import { Event } from "@/types/event";
 import { useQuery } from "@tanstack/react-query";
 
 export function useEvent(id: string) {
   return useQuery<Event>({
-    queryKey: ["event", id],
+    queryKey: keys.event.detail(id),
     queryFn: async () => {
       const event = await getEvent(id);
 
