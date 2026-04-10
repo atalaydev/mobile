@@ -1,6 +1,7 @@
 import { Pill } from "@/components/Pill";
 import { Text } from "@/components/Text";
 import { Image } from "expo-image";
+import { ColorMatrix, saturate } from "react-native-color-matrix-image-filters";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 
@@ -27,7 +28,9 @@ export function EventCard({ title, imageUrl, locationType, sessionCount, current
     <Pressable style={styles.card} onPress={onDetails}>
       <View style={styles.body}>
         <View>
-          <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
+          <ColorMatrix matrix={saturate(isPast ? 0 : 1)}>
+            <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
+          </ColorMatrix>
           {isPast && (
             <View style={styles.completedBadge}>
               <Text style={styles.completedBadgeText}>{t("library.completed")}</Text>
@@ -35,7 +38,7 @@ export function EventCard({ title, imageUrl, locationType, sessionCount, current
           )}
           {!isPast && currentSession != null && (
             <View style={styles.sessionBadge}>
-              <Text style={styles.sessionBadgeText}>{t("library.currentSession", { current: currentSession })}</Text>
+              <Text style={styles.sessionBadgeText}>{t("event.currentSession", { current: currentSession })}</Text>
             </View>
           )}
         </View>
@@ -43,7 +46,7 @@ export function EventCard({ title, imageUrl, locationType, sessionCount, current
         <View style={styles.chipRow}>
           <Pill label={locationType} />
           {sessionCount != null && (
-            <Pill label={t("library.sessionCount", { count: sessionCount })} />
+            <Pill label={t("event.sessionCount", { count: sessionCount })} />
           )}
         </View>
 

@@ -221,7 +221,7 @@ export default function LibraryScreen() {
               <EventCard
                 title={item.title}
                 imageUrl={event?.banner ?? ""}
-                locationType={({ remote: t("event.locationRemote"), hybrid: t("event.locationHybrid"), "in-person": t("event.locationInPerson"), in_person: t("event.locationInPerson") })[event?.type ?? ""] ?? event?.type ?? ""}
+                locationType={({ remote: t("locationType.remote"), hybrid: t("locationType.hybrid"), "in-person": t("locationType.inPerson"), in_person: t("locationType.inPerson") })[event?.type ?? ""] ?? event?.type ?? ""}
                 sessionCount={item.planned_session_count}
                 currentSession={item.planned_session_count > 1 && item.upcoming_session_count > 0 ? item.completed_session_count + 1 : undefined}
                 date={dateLabel}
@@ -248,15 +248,20 @@ export default function LibraryScreen() {
             const sessionOption = typeof item.session_option === "object" ? item.session_option : null;
             const expert = sessionOption && typeof sessionOption.expert === "object" ? sessionOption.expert : null;
             const dateLabel = formatDateRange(item.first_session_date, item.last_session_date);
+            const totalSessionCount = item.planned_session_count + item.unplanned_session_count;
+            const hasUnplanned = item.unplanned_session_count > 0 && item.last_session_date != null && new Date(item.last_session_date) < new Date();
 
             return (
               <Animated.View key={item.id} entering={FadeInUp.duration(400)}>
               <SessionOptionCard
                 title={item.title}
                 imageUrl={sessionOption?.banner ?? ""}
-                locationType={t("library.online")}
-                sessionCount={item.planned_session_count}
-                currentSession={item.planned_session_count > 1 && item.upcoming_session_count > 0 ? item.completed_session_count + 1 : undefined}
+                locationType={sessionOption?.location === 2 ? t("locationType.inPerson") : t("locationType.remote")}
+                duration={sessionOption?.duration}
+                sessionCount={totalSessionCount}
+                currentSession={totalSessionCount > 1 && item.upcoming_session_count > 0 ? item.completed_session_count + 1 : undefined}
+                unplannedCount={item.unplanned_session_count}
+                hasUnplanned={hasUnplanned}
                 date={dateLabel}
                 expert={{
                   name: expert?.title ?? "",

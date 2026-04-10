@@ -19,4 +19,7 @@ export const keys = {
   payment: {
     detail: (id: string) => ["payment", id] as const,
   },
+  sessionOption: {
+    detail: (id: string) => ["sessionOption", id] as const,
+  },
 };

@@ -145,11 +145,11 @@ export default function AgendaScreen() {
     if (item.type === "participation") {
       const p = item.data;
       if (p.event_session_location === 2) {
-        return { label: p.event_session_address ?? t("event.locationInPerson"), location: "" };
+        return { label: p.event_session_address ?? t("locationType.inPerson"), location: "" };
       }
-      return { label: t("event.locationRemote"), location: "" };
+      return { label: t("locationType.remote"), location: "" };
     }
-    return { label: t("event.locationRemote"), location: "" };
+    return { label: t("locationType.remote"), location: "" };
   };
 
   const handleJoin = async (item: AgendaItem) => {

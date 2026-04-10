@@ -17,6 +17,7 @@ import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetVie
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Alert, FlatList, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 
@@ -148,8 +149,8 @@ export default function EventDetailScreen() {
   const canJoin = remainingMs <= TEN_MINUTES;
 
   const sessionLocationLabel = (p: EventParticipation) => {
-    if (p.event_session_location === 2) return p.event_session_address ?? t("event.locationInPerson");
-    return t("event.locationRemote");
+    if (p.event_session_location === 2) return p.event_session_address ?? t("locationType.inPerson");
+    return t("locationType.remote");
   };
 
   const formatSessionDate = (dateStr: string) => {
@@ -212,7 +213,7 @@ export default function EventDetailScreen() {
       if (doc.type === "video") {
         router.push({ pathname: "/watch", params: { uri: url } });
       } else {
-        Linking.openURL(url);
+        WebBrowser.openBrowserAsync(url);
       }
     } catch (err) {
       console.error("[Document] error:", err);
@@ -313,7 +314,7 @@ export default function EventDetailScreen() {
                   <View style={styles.infoContent}>
                     <Text style={styles.infoTitle}>{t("event.location")}</Text>
                     <Text style={styles.infoValue}>
-                      {event?.type === "remote" ? t("event.locationRemote") : event?.type === "hybrid" ? t("event.locationHybrid") : t("event.locationInPerson")}
+                      {event?.type === "remote" ? t("locationType.remote") : event?.type === "hybrid" ? t("locationType.hybrid") : t("locationType.inPerson")}
                     </Text>
                   </View>
                 </View>
@@ -348,6 +349,7 @@ export default function EventDetailScreen() {
               </View>
             )}
 
+            {participations?.some((p) => p.end_date && new Date(p.end_date).getTime() < Date.now()) && (
             <View style={styles.reviewCard}>
               <View style={styles.reviewRow}>
                 <View>
@@ -374,7 +376,7 @@ export default function EventDetailScreen() {
                 </View>
               )}
             </View>
-
+            )}
 
             <View style={styles.docsRow}>
                     <Pressable style={styles.docsButton} onPress={() => docsSheetRef.current?.expand()}>
@@ -391,11 +393,11 @@ export default function EventDetailScreen() {
               <View style={styles.sessionGroup}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionBar} />
-                  <Text style={styles.sectionTitle}>{t("library.nextSession")}</Text>
+                  <Text style={styles.sectionTitle}>{t("event.nextSession")}</Text>
                 </View>
                 <View style={styles.sessionCard}>
                   <View style={styles.sessionBadge}>
-                    <Text style={styles.sessionBadgeText}>{t("library.currentSession", { current: sessionNumbers.get(next.id) })}</Text>
+                    <Text style={styles.sessionBadgeText}>{t("event.currentSession", { current: sessionNumbers.get(next.id) })}</Text>
                   </View>
                   <Text style={styles.sessionDate}>{formatSessionDate(next.start_date)}</Text>
                   <Text style={styles.sessionTitle}>{next.event_session_title || event?.title}</Text>
@@ -410,7 +412,7 @@ export default function EventDetailScreen() {
                         <View style={styles.recordingInfo}>
                           <SymbolView name="info.circle" size={14} tintColor={colors.primary} style={{ marginTop: 2 }} />
                           <Text style={styles.recordingText}>
-                            {t("library.recordingAvailableBefore")}<Text style={styles.recordingBold}>{formatSessionDate(deadline.toISOString())}</Text>{t("library.recordingAvailableAfter")}
+                            {t("event.recordingAvailableBefore")}<Text style={styles.recordingBold}>{formatSessionDate(deadline.toISOString())}</Text>{t("event.recordingAvailableAfter")}
                           </Text>
                         </View>
                       );
@@ -435,7 +437,7 @@ export default function EventDetailScreen() {
                             <ActivityIndicator size="small" color="#fff" />
                           ) : (
                             <Text style={styles.sessionButtonText}>
-                              {canJoin ? t("library.joinLive") : countdownText ? t("agenda.startsIn", { time: countdownText }) : t("library.joinLive")}
+                              {canJoin ? t("event.joinLive") : countdownText ? t("agenda.startsIn", { time: countdownText }) : t("event.joinLive")}
                             </Text>
                           )}
                         </Pressable>
@@ -449,7 +451,7 @@ export default function EventDetailScreen() {
               </View>
             )}
 
-            <Text style={styles.sectionTitle}>{t("library.sessionsTitle")}</Text>
+            <Text style={styles.sectionTitle}>{t("event.sessionsTitle")}</Text>
 
             <View style={styles.sessionTabs}>
               <Pressable
@@ -457,7 +459,7 @@ export default function EventDetailScreen() {
                 onPress={() => setSessionTab("planned")}
               >
                 <Text style={[styles.sessionTabText, sessionTab === "planned" && styles.sessionTabTextActive]}>
-                  {t("library.plannedSessions")}
+                  {t("event.planned")}
                 </Text>
               </Pressable>
               <Pressable
@@ -465,7 +467,7 @@ export default function EventDetailScreen() {
                 onPress={() => setSessionTab("past")}
               >
                 <Text style={[styles.sessionTabText, sessionTab === "past" && styles.sessionTabTextActive]}>
-                  {t("library.pastSessions")}
+                  {t("event.past")}
                 </Text>
               </Pressable>
             </View>
@@ -473,14 +475,14 @@ export default function EventDetailScreen() {
             {sessionTab === "planned" && planned.length === 0 && (
               <View style={styles.emptyContainer}>
                 <SymbolView name="calendar.badge.clock" size={36} tintColor="#C1D5CE" />
-                <Text style={styles.emptyText}>{t("library.emptyPlanned")}</Text>
+                <Text style={styles.emptyText}>{t("event.emptyPlanned")}</Text>
               </View>
             )}
 
             {sessionTab === "planned" && planned.map((p) => (
               <View key={p.id} style={styles.sessionCard}>
                 <View style={styles.sessionBadge}>
-                  <Text style={styles.sessionBadgeText}>{t("library.currentSession", { current: sessionNumbers.get(p.id) })}</Text>
+                  <Text style={styles.sessionBadgeText}>{t("event.currentSession", { current: sessionNumbers.get(p.id) })}</Text>
                 </View>
                 <Text style={styles.sessionDate}>{formatSessionDate(p.start_date)}</Text>
                 <Text style={styles.sessionTitle}>{p.event_session_title || event?.title}</Text>
@@ -495,7 +497,7 @@ export default function EventDetailScreen() {
                       <View style={styles.recordingInfo}>
                         <SymbolView name="info.circle" size={14} tintColor={colors.primary} style={{ marginTop: 2 }} />
                         <Text style={styles.recordingText}>
-                          {t("library.recordingAvailableBefore")}<Text style={styles.recordingBold}>{formatSessionDate(deadline.toISOString())}</Text>{t("library.recordingAvailableAfter")}
+                          {t("event.recordingAvailableBefore")}<Text style={styles.recordingBold}>{formatSessionDate(deadline.toISOString())}</Text>{t("event.recordingAvailableAfter")}
                         </Text>
                       </View>
                     );
@@ -513,14 +515,14 @@ export default function EventDetailScreen() {
             {sessionTab === "past" && past.length === 0 && (
               <View style={styles.emptyContainer}>
                 <SymbolView name="clock.arrow.circlepath" size={36} tintColor="#C1D5CE" />
-                <Text style={styles.emptyText}>{t("library.emptyPast")}</Text>
+                <Text style={styles.emptyText}>{t("event.emptyPast")}</Text>
               </View>
             )}
 
             {sessionTab === "past" && past.map((p) => (
               <View key={p.id} style={styles.sessionCard}>
                 <View style={styles.sessionBadge}>
-                  <Text style={styles.sessionBadgeText}>{t("library.currentSession", { current: sessionNumbers.get(p.id) })}</Text>
+                  <Text style={styles.sessionBadgeText}>{t("event.currentSession", { current: sessionNumbers.get(p.id) })}</Text>
                 </View>
                 <Text style={styles.sessionDate}>{formatSessionDate(p.start_date)}</Text>
                 <Text style={styles.sessionTitle}>{p.event_session_title || event?.title}</Text>
@@ -544,7 +546,7 @@ export default function EventDetailScreen() {
                       <View style={styles.recordingInfo}>
                         <SymbolView name="info.circle" size={14} tintColor={colors.primary} style={{ marginTop: 2 }} />
                         <Text style={styles.recordingText}>
-                          {t("library.recordingAvailableBefore")}<Text style={styles.recordingBold}>{formatSessionDate(deadline.toISOString())}</Text>{t("library.recordingAvailableAfter")}
+                          {t("event.recordingAvailableBefore")}<Text style={styles.recordingBold}>{formatSessionDate(deadline.toISOString())}</Text>{t("event.recordingAvailableAfter")}
                         </Text>
                       </View>
                       <View style={styles.docsRow}>
@@ -556,7 +558,7 @@ export default function EventDetailScreen() {
                           {watchingId === p.id ? (
                             <ActivityIndicator size="small" color="#fff" />
                           ) : (
-                            <Text style={styles.sessionButtonText}>{t("library.watchRecording")}</Text>
+                            <Text style={styles.sessionButtonText}>{t("event.watchRecording")}</Text>
                           )}
                         </Pressable>
                         <Pressable style={styles.moreButton} onPress={() => { setSessionActionsData({ participationId: p.id, docs: p.session_docs ?? [] }); sessionActionsSheetRef.current?.expand(); }}>
@@ -628,7 +630,7 @@ export default function EventDetailScreen() {
               {i > 0 && <View style={styles.actionDivider} />}
               <Pressable style={styles.actionItem} onPress={() => { recordingsSheetRef.current?.close(); openRecording(recordingsSheetData.participationId, recordingId); }}>
                 <SymbolView name="play.circle" size={20} tintColor="#183228" />
-                <Text style={styles.actionItemText}>{t("library.recordingPart", { current: i + 1 })}</Text>
+                <Text style={styles.actionItemText}>{t("event.recordingPart", { current: i + 1 })}</Text>
               </Pressable>
             </View>
           ))}

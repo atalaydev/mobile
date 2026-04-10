@@ -1,7 +1,9 @@
 import { Pill } from "@/components/Pill";
 import { Text } from "@/components/Text";
 import { Image } from "expo-image";
+import { SymbolView } from "expo-symbols";
 import { useTranslation } from "react-i18next";
+import { ColorMatrix, saturate } from "react-native-color-matrix-image-filters";
 import { Pressable, StyleSheet, View } from "react-native";
 
 type SessionOptionCardProps = {
@@ -9,6 +11,7 @@ type SessionOptionCardProps = {
   imageUrl: string;
   locationType: string;
   sessionCount?: number;
+  duration?: number;
   date: string;
   expert: {
     name: string;
@@ -16,18 +19,22 @@ type SessionOptionCardProps = {
     avatarUrl: string;
   };
   currentSession?: number;
+  unplannedCount?: number;
+  hasUnplanned?: boolean;
   isPast?: boolean;
   onDetails?: () => void;
 };
 
-export function SessionOptionCard({ title, imageUrl, locationType, sessionCount, currentSession, date, expert, isPast, onDetails }: SessionOptionCardProps) {
+export function SessionOptionCard({ title, imageUrl, locationType, sessionCount, duration, currentSession, unplannedCount, hasUnplanned, date, expert, isPast, onDetails }: SessionOptionCardProps) {
   const { t } = useTranslation();
 
   return (
     <View style={styles.card}>
       <View style={styles.body}>
         <View>
-          <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
+          <ColorMatrix matrix={saturate(isPast ? 0 : 1)}>
+            <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
+          </ColorMatrix>
           {isPast && (
             <View style={styles.completedBadge}>
               <Text style={styles.completedBadgeText}>{t("library.completed")}</Text>
@@ -35,15 +42,18 @@ export function SessionOptionCard({ title, imageUrl, locationType, sessionCount,
           )}
           {!isPast && currentSession != null && (
             <View style={styles.sessionBadge}>
-              <Text style={styles.sessionBadgeText}>{t("library.currentSession", { current: currentSession })}</Text>
+              <Text style={styles.sessionBadgeText}>{t("session.current", { current: currentSession })}</Text>
             </View>
           )}
         </View>
 
         <View style={styles.chipRow}>
           <Pill label={locationType} />
+          {duration != null && (
+            <Pill label={t("session.duration", { count: duration })} />
+          )}
           {sessionCount != null && (
-            <Pill label={t("library.sessionCount", { count: sessionCount })} />
+            <Pill label={t("session.count", { count: sessionCount })} />
           )}
         </View>
 
@@ -58,7 +68,14 @@ export function SessionOptionCard({ title, imageUrl, locationType, sessionCount,
         </View>
 
         <View style={styles.dateRow}>
-          <Text style={styles.dateText}>{date}</Text>
+          {hasUnplanned ? (
+            <>
+              <SymbolView name="calendar.badge.exclamationmark" size={18} tintColor="#183228" style={{ marginTop: 1 }} />
+              <Text style={[styles.dateText, { marginLeft: 6 }]}>{t("session.unplannedBadge", { count: unplannedCount })}</Text>
+            </>
+          ) : (
+            <Text style={styles.dateText}>{date}</Text>
+          )}
         </View>
       </View>
 
@@ -112,6 +129,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#fff",
   },
+  unplannedBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "#EBF1EF",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  unplannedBadgeText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    color: "#336B57",
+  },
   chipRow: {
     flexDirection: "row",
     gap: 8,
@@ -159,7 +190,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingVertical: 10,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     alignSelf: "center",
     width: "100%",
   },

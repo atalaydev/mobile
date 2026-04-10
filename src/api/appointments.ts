@@ -46,3 +46,18 @@ export const joinAppointment = async (id: string): Promise<ZoomCredentials> => {
   const { data } = await axios.get<ZoomCredentials>(`/1/appointments/${id}/join/`);
   return data;
 };
+
+export const cancelAppointment = async (ids: string[], reason: string): Promise<void> => {
+  await axios.post(`/1/appointments/cancel/`, { ids, refund_to: 1, reason });
+};
+
+export const submitAppointmentReview = async (id: string, rating: number, comment: string): Promise<void> => {
+  await axios.post(`/1/appointments/${id}/review/`, { rating, comment });
+};
+
+export const getAppointmentDocumentUrl = async (id: string, key: string, isVideo = false): Promise<string> => {
+  const { data } = await axios.get<{ url: string }>(`/1/appointments/${id}/document/${key}/`, {
+    params: { type: isVideo ? "video" : "document" },
+  });
+  return data.url;
+};

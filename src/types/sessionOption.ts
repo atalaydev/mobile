@@ -6,6 +6,7 @@ export interface SessionOption {
   slug: string;
   title: string;
   banner: string;
+  description?: string;
   duration: number;
   location: number;
   country: string | null;
