@@ -21,5 +21,6 @@ export const keys = {
   },
   sessionOption: {
     detail: (id: string) => ["sessionOption", id] as const,
+    availabilitySlots: (id: string, year: number, month: number) => ["sessionOption", id, "availabilitySlots", year, month] as const,
   },
 };

@@ -178,6 +178,16 @@
     "joinFailed": "Could not join the meeting.",
     "goBack": "Go Back"
   },
+  "schedule": {
+    "title": "Date & Time Selection",
+    "dateSelection": "Select Date",
+    "timeSelection": "Select Time",
+    "selection": "Selection",
+    "confirm": "Confirm Date Selection",
+    "confirmFailed": "Could not schedule the session, please try again.",
+    "today": "Today",
+    "noSlots": "No available slots for this date."
+  },
   "common": {
     "error": "Error",
     "turnstileWaiting": "Verification pending, please wait."

@@ -178,6 +178,16 @@
     "joinFailed": "Toplantıya katılınamadı.",
     "goBack": "Geri Dön"
   },
+  "schedule": {
+    "title": "Tarih ve Saat Seçimi",
+    "dateSelection": "Tarih Seçimi",
+    "timeSelection": "Saat Seçimi",
+    "selection": "Seçim",
+    "confirm": "Tarih Seçimini Onayla",
+    "confirmFailed": "Tarih belirlenemedi, lütfen tekrar deneyin.",
+    "today": "Bugün",
+    "noSlots": "Bu tarih için uygun saat bulunmuyor."
+  },
   "common": {
     "error": "Hata",
     "turnstileWaiting": "Doğrulama bekleniyor, lütfen bekleyin."

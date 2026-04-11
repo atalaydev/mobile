@@ -25,6 +25,18 @@ export const getSessionOption = async (id: string): Promise<SessionOption> => {
   return data;
 };
 
+export const getAvailabilitySlots = async (sessionOptionId: string, year: number, month: number): Promise<string[]> => {
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 1);
+  const { data } = await axios.get<string[]>(`/1/expert-session-options/${sessionOptionId}/availability-slots/`, {
+    params: {
+      start: start.toISOString(),
+      end: end.toISOString(),
+    },
+  });
+  return data;
+};
+
 export const getSessionOptions = async (options?: Options): Promise<Response<SessionOption>> => {
   const { data } = await axios.get<Response<SessionOption>>("/1/expert-session-options/", {
     params: {

@@ -386,7 +386,7 @@ export default function SessionDetailScreen() {
                   </View>
                 )}
                 <View style={styles.docsRow}>
-                  <Pressable style={[styles.sessionButton, { flex: 1 }]} onPress={() => {}}>
+                  <Pressable style={[styles.sessionButton, { flex: 1 }]} onPress={() => router.push(`/schedule/${id}/${a.id}`)}>
                     <Text style={styles.sessionButtonText}>{t("session.scheduleDate")}</Text>
                   </Pressable>
                   <Pressable style={styles.moreButton} onPress={() => { setCardActionsAppointmentId(a.id); setCardActionsShowHelp(true); cardActionsSheetRef.current?.expand(); }}>

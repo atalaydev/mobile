@@ -55,6 +55,10 @@ export const submitAppointmentReview = async (id: string, rating: number, commen
   await axios.post(`/1/appointments/${id}/review/`, { rating, comment });
 };
 
+export const initiateAppointment = async (id: string, date: string): Promise<void> => {
+  await axios.post(`/1/appointments/${id}/initiate/`, { date });
+};
+
 export const getAppointmentDocumentUrl = async (id: string, key: string, isVideo = false): Promise<string> => {
   const { data } = await axios.get<{ url: string }>(`/1/appointments/${id}/document/${key}/`, {
     params: { type: isVideo ? "video" : "document" },
